@@ -45,12 +45,22 @@ yet, so those still show `unknown`.
 ## Usage
 
 ```bash
-# Headline summary: age timings, pace, production-by-age, activity.
+# Headline summary: age timings, pace, production-by-age, TC idle, activity.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record
 
 # Same, plus the full numbered build-order timeline.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record --build-order
+
+# List villager-like units (builders) and their object ids.
+python -m aoe2_analyzer villagers path/to/replay.aoe2record --player 1
+
+# Follow one villager: every order it received (target id + map x/y).
+python -m aoe2_analyzer unit path/to/replay.aoe2record 2810
 ```
+
+> Following a unit is exact (object id + target id + position), but the replay
+> doesn't carry the target's *type*, so "wood vs gold vs food" isn't labelled —
+> only the target object and where on the map it was.
 
 ## Project layout
 

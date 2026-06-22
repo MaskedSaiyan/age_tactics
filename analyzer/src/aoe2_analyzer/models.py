@@ -62,6 +62,23 @@ class IdleGap:
 
 
 @dataclass
+class UnitCommand:
+    """One command issued to a specific unit (by its object id).
+
+    Lets us follow an individual villager: every ORDER / MOVE / BUILD / etc it
+    received, with the target object and map position. The replay does not carry
+    the *type* of the target, so `target_id` and `x`/`y` are as far as we can go.
+    """
+
+    game_time: float
+    action: str  # "ORDER", "MOVE", "BUILD", "WORK", "STOP", ...
+    target_id: Optional[int] = None
+    x: Optional[float] = None
+    y: Optional[float] = None
+    detail: Optional[str] = None  # e.g. building name for BUILD
+
+
+@dataclass
 class EconomySnapshot:
     """A point-in-time snapshot of a player's economy."""
 
@@ -129,8 +146,21 @@ class ReplaySummary:
     game_version: Optional[str] = None  # e.g. "VER 9.4" (DE)
     players: list[PlayerSummary] = field(default_factory=list)
 
+    # Per-unit command logs: object_id -> chronological commands, and the
+    # player that owns each object. Populated for units that received commands.
+    unit_commands: dict[int, list[UnitCommand]] = field(default_factory=dict)
+    unit_owner: dict[int, int] = field(default_factory=dict)
+    # Object ids that issued a BUILD command (builders == villagers).
+    builder_ids: set[int] = field(default_factory=set)
+
     # Human-readable caveats about what could / couldn't be extracted.
     notes: list[str] = field(default_factory=list)
+
+    def units_for_player(self, player_id: int) -> list[int]:
+        """Object ids owned by a player that received at least one command."""
+        return sorted(
+            oid for oid, owner in self.unit_owner.items() if owner == player_id
+        )
 
     def player_by_name(self, name: str) -> Optional[PlayerSummary]:
         for p in self.players:

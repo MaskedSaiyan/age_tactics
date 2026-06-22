@@ -214,6 +214,79 @@ def format_build_order(p: PlayerSummary) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _fmt_pos(x: float | None, y: float | None) -> str:
+    if x is None or y is None:
+        return ""
+    return f"@ ({x:.1f}, {y:.1f})"
+
+
+def format_unit_log(summary: ReplaySummary, object_id: int) -> str:
+    """Return the chronological command log for one unit (by object id)."""
+    cmds = summary.unit_commands.get(object_id)
+    owner = summary.unit_owner.get(object_id)
+    owner_name = None
+    if owner is not None:
+        owner_name = next(
+            (p.name for p in summary.players if p.player_id == owner), f"player {owner}"
+        )
+
+    is_villager = object_id in summary.builder_ids
+    kind = "Villager" if is_villager else "Unit"
+    header = f"{kind} {object_id}"
+    if owner_name:
+        header += f"  (owner: {owner_name})"
+
+    lines = ["=" * 60, header, "=" * 60]
+    if not cmds:
+        lines.append("(no commands recorded for this object id)")
+        return "\n".join(lines) + "\n"
+
+    for c in cmds:
+        verb = c.action.lower()
+        bits = [f"  {_fmt_time(c.game_time)}  {verb:<8}"]
+        if c.detail:
+            bits.append(f"-> {c.detail}")
+        elif c.target_id not in (None, -1):
+            bits.append(f"-> target {c.target_id}")
+        else:
+            bits.append("->")
+        pos = _fmt_pos(c.x, c.y)
+        if pos:
+            bits.append(pos)
+        lines.append(" ".join(bits))
+    return "\n".join(lines) + "\n"
+
+
+def format_villager_list(summary: ReplaySummary, player_id: int | None = None) -> str:
+    """List builder units (villagers) and how many commands each received."""
+    lines = ["=" * 60, "Villager-like units (issued at least one BUILD)", "=" * 60]
+    ids = sorted(summary.builder_ids)
+    if player_id is not None:
+        ids = [i for i in ids if summary.unit_owner.get(i) == player_id]
+
+    if not ids:
+        lines.append("(none found)")
+        return "\n".join(lines) + "\n"
+
+    # Group by owner for readability.
+    by_owner: dict[int, list[int]] = {}
+    for oid in ids:
+        by_owner.setdefault(summary.unit_owner.get(oid, -1), []).append(oid)
+
+    for owner, oids in by_owner.items():
+        owner_name = next(
+            (p.name for p in summary.players if p.player_id == owner), f"player {owner}"
+        )
+        lines.append(f"\n{owner_name} ({len(oids)} villagers):")
+        for oid in oids:
+            cmds = summary.unit_commands.get(oid, [])
+            first = cmds[0].game_time if cmds else None
+            lines.append(
+                f"  obj {oid:<6} first seen {_fmt_time(first)}   {len(cmds)} commands"
+            )
+    return "\n".join(lines) + "\n"
+
+
 def print_summary(summary: ReplaySummary) -> None:
     print(format_summary(summary), end="")
 

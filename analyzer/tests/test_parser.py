@@ -75,3 +75,19 @@ def test_real_parse_reconstructs_build_order():
     assert any(e.kind == "building" for e in p.build_order)
     # Age markers appear in the timeline too.
     assert any(e.kind == "age" for e in p.build_order)
+
+
+@pytest.mark.skipif(not os.path.isfile(SAMPLE), reason="no sample .aoe2record")
+def test_real_parse_tracks_individual_units():
+    summary = parse_replay(SAMPLE)
+    # Builders (villagers) are identified, and each has a command log.
+    assert summary.builder_ids, "expected builder (villager) object ids"
+    oid = next(iter(summary.builder_ids))
+    cmds = summary.unit_commands[oid]
+    assert cmds, "a builder should have at least one command"
+    # Commands are chronological and a builder issued at least one BUILD.
+    times = [c.game_time for c in cmds]
+    assert times == sorted(times)
+    assert any(c.action == "BUILD" for c in summary.unit_commands[oid])
+    # Ownership is recorded and points at a real player.
+    assert summary.unit_owner[oid] in {p.player_id for p in summary.players}

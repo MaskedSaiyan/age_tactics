@@ -37,7 +37,22 @@ import zlib
 from typing import Optional
 
 from .gamedata import VILLAGER_ID, building_name, unit_name
-from .models import AgeTiming, BuildOrderEvent, IdleGap, PlayerSummary, ReplaySummary
+from .models import (
+    AgeTiming,
+    BuildOrderEvent,
+    IdleGap,
+    PlayerSummary,
+    ReplaySummary,
+    UnitCommand,
+)
+
+# Action types whose `object_ids` are the acting units (so we can follow a unit).
+# Excludes production/rally ops (MAKE/DE_QUEUE/RESEARCH/GATHER_POINT) whose
+# object_ids are the producing building, not the unit.
+UNIT_COMMAND_ACTIONS = {
+    "ORDER", "MOVE", "WORK", "BUILD", "STOP", "DELETE", "STANCE",
+    "FORMATION", "UNGARRISON", "GROUP_MULTI_WAYPOINTS", "DE_TRANSFORM",
+}
 
 # Age advance technologies, keyed by mgz RESEARCH technology_id.
 AGE_TECHS = {101: "Feudal", 102: "Castle", 103: "Imperial"}
@@ -119,6 +134,10 @@ def _parse_real(path: str) -> ReplaySummary:
     # player_id -> list of (time, object_ids, kind, value) occupying a building.
     # kind "vil": value=count (train ~25s each); "age": value=research seconds.
     tc_events: dict[int, list[tuple]] = {}
+    # Per-unit command logs and ownership (for following an individual villager).
+    unit_commands: dict[int, list[UnitCommand]] = {}
+    unit_owner: dict[int, int] = {}
+    builder_ids: set[int] = set()
 
     def add_event(pid: int, t_sec: float, kind: str, name: str, count: int = 1) -> None:
         events.setdefault(pid, []).append(BuildOrderEvent(t_sec, kind, name, count))
@@ -172,6 +191,26 @@ def _parse_real(path: str) -> ReplaySummary:
                             (t_sec, objs, "age", AGE_RESEARCH_SECONDS[age])
                         )
 
+                # Per-unit command log: record this command against each acting
+                # unit's object id, so an individual villager can be followed.
+                if name in UNIT_COMMAND_ACTIONS:
+                    detail = building_name(payload.get("building_id")) if name == "BUILD" else None
+                    cmd = UnitCommand(
+                        game_time=t_sec,
+                        action=name,
+                        target_id=payload.get("target_id"),
+                        x=payload.get("x"),
+                        y=payload.get("y"),
+                        detail=detail,
+                    )
+                    for oid in payload.get("object_ids") or []:
+                        if not isinstance(oid, int):
+                            continue
+                        unit_commands.setdefault(oid, []).append(cmd)
+                        unit_owner.setdefault(oid, pid)
+                        if name == "BUILD":
+                            builder_ids.add(oid)
+
     duration_ms = postgame_world_time or total_ms
     duration_seconds = duration_ms / 1000.0 if duration_ms else None
 
@@ -207,6 +246,9 @@ def _parse_real(path: str) -> ReplaySummary:
         game_duration_seconds=duration_seconds,
         game_version=version,
         players=players,
+        unit_commands=unit_commands,
+        unit_owner=unit_owner,
+        builder_ids=builder_ids,
         notes=[
             "Age CLICK times are read directly from the command stream (real). "
             "ARRIVAL times are estimated as click + standard research duration "

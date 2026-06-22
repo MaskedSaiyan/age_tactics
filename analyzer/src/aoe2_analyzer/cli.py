@@ -1,7 +1,9 @@
 """Command-line interface for aoe2_analyzer.
 
 Usage:
-    python -m aoe2_analyzer analyze path/to/replay.aoe2record
+    python -m aoe2_analyzer analyze   path/to/replay.aoe2record [--build-order]
+    python -m aoe2_analyzer villagers path/to/replay.aoe2record [--player N]
+    python -m aoe2_analyzer unit      path/to/replay.aoe2record <object_id>
 """
 
 from __future__ import annotations
@@ -12,7 +14,12 @@ from typing import Optional, Sequence
 
 from . import __version__
 from .parser import ReplayParseError, parse_replay
-from .report import print_build_orders, print_summary
+from .report import (
+    format_unit_log,
+    format_villager_list,
+    print_build_orders,
+    print_summary,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,7 +43,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also print the full numbered build-order timeline.",
     )
 
+    villagers = subparsers.add_parser(
+        "villagers",
+        help="List villager-like units (builders) and their object ids.",
+    )
+    villagers.add_argument("replay", help="Path to a .aoe2record file.")
+    villagers.add_argument(
+        "-p", "--player", type=int, default=None,
+        help="Only list units owned by this player id.",
+    )
+
+    unit = subparsers.add_parser(
+        "unit",
+        help="Print the full command log for one unit (follow a villager).",
+    )
+    unit.add_argument("replay", help="Path to a .aoe2record file.")
+    unit.add_argument("object_id", type=int, help="Object id of the unit to follow.")
+
     return parser
+
+
+def _load(replay: str):
+    try:
+        return parse_replay(replay)
+    except ReplayParseError as exc:
+        print(f"error: could not parse replay: {exc}", file=sys.stderr)
+        return None
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -44,14 +76,26 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "analyze":
-        try:
-            summary = parse_replay(args.replay)
-        except ReplayParseError as exc:
-            print(f"error: could not parse replay: {exc}", file=sys.stderr)
+        summary = _load(args.replay)
+        if summary is None:
             return 1
         print_summary(summary)
         if args.build_order:
             print_build_orders(summary)
+        return 0
+
+    if args.command == "villagers":
+        summary = _load(args.replay)
+        if summary is None:
+            return 1
+        print(format_villager_list(summary, args.player), end="")
+        return 0
+
+    if args.command == "unit":
+        summary = _load(args.replay)
+        if summary is None:
+            return 1
+        print(format_unit_log(summary, args.object_id), end="")
         return 0
 
     parser.print_help()
