@@ -1,70 +1,77 @@
 """Tests for the replay parser.
 
-Two layers:
-  * a missing/garbage path must fall back to a valid MOCK ReplaySummary;
-  * if a real sample .aoe2record is present, real parsing must yield sensible
-    numbers (this test self-skips when no sample is available).
+  * a missing/garbage path must raise a clear ReplayParseError (no mock fallback);
+  * with the bundled sample .aoe2record, real parsing must yield sensible numbers
+    and extract age-up click times (this test self-skips if the sample is absent).
 """
 
 import os
 
 import pytest
 
-from aoe2_analyzer.models import AgeTiming, PlayerSummary, ReplaySummary
-from aoe2_analyzer.parser import parse_replay
+from aoe2_analyzer.models import AgeTiming, ReplaySummary
+from aoe2_analyzer.parser import ReplayParseError, parse_replay
 
-SAMPLE = os.path.join(
-    os.path.dirname(__file__), "..", "samples", "rec.aoe2record"
-)
+SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "rec.aoe2record")
 
 
-# --- Mock fallback (no real file) ----------------------------------------- #
+# --- Failure handling (no real file) -------------------------------------- #
 
 
-def test_parse_replay_returns_replay_summary():
-    summary = parse_replay("does/not/need/to/exist.aoe2record")
-    assert isinstance(summary, ReplaySummary)
+def test_missing_file_raises():
+    with pytest.raises(ReplayParseError):
+        parse_replay("does/not/exist.aoe2record")
 
 
-def test_missing_file_falls_back_to_mock():
-    summary = parse_replay("whatever.aoe2record")
-    assert summary.is_mock is True
+# --- Real parsing (only if the sample replay exists) ---------------------- #
 
 
-def test_mock_summary_has_players():
-    summary = parse_replay("whatever.aoe2record")
-    assert len(summary.players) >= 1
-    assert all(isinstance(p, PlayerSummary) for p in summary.players)
-
-
-def test_mock_summary_records_source_file():
-    path = "some/path/replay.aoe2record"
-    summary = parse_replay(path)
-    assert summary.source_file == path
-
-
-def test_mock_goth_player_has_age_timings():
-    summary = parse_replay("whatever.aoe2record")
-    goth = next((p for p in summary.players if p.civ == "Goths"), None)
-    assert goth is not None
-    assert all(isinstance(t, AgeTiming) for t in goth.age_timings)
-    assert goth.age("Castle") is not None
-
-
-# --- Real parsing (only if a sample replay exists) ------------------------ #
-
-
-@pytest.mark.skipif(
-    not os.path.isfile(SAMPLE), reason="no sample .aoe2record in samples/"
-)
+@pytest.mark.skipif(not os.path.isfile(SAMPLE), reason="no sample .aoe2record")
 def test_real_parse_extracts_sensible_data():
     summary = parse_replay(SAMPLE)
     assert isinstance(summary, ReplaySummary)
-    assert summary.is_mock is False
     assert summary.game_version  # e.g. "VER 9.4"
     assert summary.game_duration_seconds and summary.game_duration_seconds > 0
     assert len(summary.players) >= 1
-    # At least one player should have real activity counts.
-    assert any(
-        (p.action_count or 0) > 0 for p in summary.players
-    ), "expected per-player action counts from the command stream"
+    assert any((p.action_count or 0) > 0 for p in summary.players), (
+        "expected per-player action counts from the command stream"
+    )
+
+
+@pytest.mark.skipif(not os.path.isfile(SAMPLE), reason="no sample .aoe2record")
+def test_real_parse_extracts_age_timings():
+    summary = parse_replay(SAMPLE)
+    # At least one player advanced an age, so some AgeTiming must be present.
+    aged = [p for p in summary.players if p.age_timings]
+    assert aged, "expected at least one player with age-up timings"
+
+    for p in aged:
+        for t in p.age_timings:
+            assert isinstance(t, AgeTiming)
+            assert t.click_time is not None and t.click_time > 0
+            # arrival is estimated as click + research time, so strictly later.
+            assert t.arrival_time is not None and t.arrival_time > t.click_time
+            assert t.arrival_estimated is True
+
+    # Ages, when present, must be in chronological order (Feudal before Castle…).
+    for p in aged:
+        clicks = [t.click_time for t in p.age_timings]
+        assert clicks == sorted(clicks), "age clicks should be chronological"
+
+
+@pytest.mark.skipif(not os.path.isfile(SAMPLE), reason="no sample .aoe2record")
+def test_real_parse_reconstructs_build_order():
+    summary = parse_replay(SAMPLE)
+    aged = [p for p in summary.players if p.age_timings]
+    assert aged, "expected a player with a build order"
+    p = aged[0]
+
+    assert p.build_order, "expected build-order events"
+    # Events must be chronological.
+    times = [e.game_time for e in p.build_order]
+    assert times == sorted(times)
+    # A real game queues villagers and places buildings.
+    assert any(e.kind == "unit" and e.name == "Villager" for e in p.build_order)
+    assert any(e.kind == "building" for e in p.build_order)
+    # Age markers appear in the timeline too.
+    assert any(e.kind == "age" for e in p.build_order)

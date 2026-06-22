@@ -1,44 +1,48 @@
-# analyzer/ — AoE2 DE replay analyzer (exploratory)
+# analyzer/ — AoE2 DE replay analyzer
 
-A Python project for parsing **AoE2 DE replay/save files** (`.aoe2record`) and extracting useful
-stats to help you improve — especially the boring-but-game-losing stuff like idle TC time and
-late Age clicks.
+A Python tool that parses **AoE2 DE replay files** (`.aoe2record`) and reconstructs your
+**build order** and **age-up timings** so you can see exactly where to improve — when you
+clicked each age and how many villagers / military / buildings you had by then.
 
-## Status: partially working — exploratory
+## How it works
 
 We use the [`mgz`](https://pypi.org/project/mgz/) library to walk the replay's **command
-stream** (the body of the file). That part is robust, so some stats are now **real**. The
-**header** (civs, map) isn't fully parseable for every DE sub-version yet, so those fall back
-to `unknown`. If `mgz` is missing or a file can't be read, the parser returns a clearly-flagged
-**mock** summary so the CLI and tests still run.
+stream** (the body of the file) — every action each player took, interleaved with time ticks.
+That stream is robust across DE versions, so the timings and build order are **real data read
+straight from the file**. The header (civ, map) isn't fully parseable for every DE sub-version
+yet, so those still show `unknown`.
 
-### ✅ Working now (real data, read from the file)
-- **Game version** string (e.g. `VER 9.4`).
-- **Real game duration** (from SYNC operations / postgame `world_time`).
-- **Per-player activity**: total actions, buildings placed (`BUILD`), units queued (`MAKE`).
-- **Player names** (scraped from the header string table — slot order, may not align with
-  action `player_id`s; flagged in the output notes).
+### ✅ Extracted now (real data)
+- **Game version** (e.g. `VER 9.4`) and **real game duration**.
+- **Age-up timings**: when **Feudal / Castle / Imperial** were *clicked* (read from the
+  RESEARCH action on each age tech). Arrival is estimated as click + standard research time.
+- **Pace**: time spent in each age (Dark→Feudal, Feudal→Castle, Castle→Imperial).
+- **Build order**: a chronological, numbered timeline of every unit queued
+  (`MAKE` + `DE_QUEUE`) and building placed (`BUILD`), with age markers — i.e. Villager #1..N,
+  the military, and buildings up to each age.
+- **Production by age**: cumulative villagers / military / buildings at each age click.
+- **Player names** (scraped from the header string table, slot order).
 
-### 🚧 Still TODO (needs full header parse or command-stream simulation)
-- **Civilizations** per player (header parse unsupported for this DE sub-version).
-- **Feudal / Castle / Imperial click and arrival times.**
-- **Villager count by age** and **resource distribution over time.**
+### 🚧 Roadmap (needs command-stream simulation / full header parse)
+- **Civilizations** per player and **map**.
+- **Resource distribution over time** and **villagers actually alive** (vs queued).
 - **Town Center idle time** — the silent game-loser.
 - **Farm count** and **number of Town Centers** (catch the Goth "too many TCs" trap).
 - **Housed time** — how long you spent population-blocked.
-- **Build order reconstruction** — a timeline of what was built/queued when.
 
-⚠️ Don't over-trust the numbers yet. Duration and activity counts are solid; everything marked
-`n/a` or `unknown` is not extracted yet.
+> Counts are recorded when a unit is **queued**, not when it pops (a villager takes ~25s to
+> appear, and cancelled queues still count). AI players issue orders differently, so their
+> age timings / build order may be missing.
 
-## Usage (skeleton)
+## Usage
 
 ```bash
+# Headline summary: age timings, pace, production-by-age, activity.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record
-```
 
-With a real `.aoe2record` this prints the version, real duration, and per-player activity.
-With a missing/unreadable file it prints a clearly-labelled mock summary instead.
+# Same, plus the full numbered build-order timeline.
+python -m aoe2_analyzer analyze path/to/replay.aoe2record --build-order
+```
 
 ## Project layout
 
@@ -48,30 +52,24 @@ analyzer/
 ├── pyproject.toml
 ├── src/
 │   └── aoe2_analyzer/
-│       ├── __init__.py
-│       ├── cli.py        <- argparse CLI: `python -m aoe2_analyzer analyze <file>`
-│       ├── parser.py     <- returns a MOCK ReplaySummary (real parsing = TODO)
-│       ├── models.py     <- dataclasses: PlayerSummary, AgeTiming, EconomySnapshot, ReplaySummary
-│       └── report.py     <- pretty-print a ReplaySummary to the terminal
+│       ├── cli.py        <- argparse CLI: `analyze <file> [--build-order]`
+│       ├── parser.py     <- walks the command stream -> ReplaySummary
+│       ├── gamedata.py   <- unit/building id -> name lookups
+│       ├── models.py     <- dataclasses: AgeTiming, BuildOrderEvent, PlayerSummary, …
+│       └── report.py     <- pretty-print summary + build order
 ├── tests/
-│   └── test_parser.py    <- validates the mock parser returns a ReplaySummary
+│   └── test_parser.py    <- real-parse tests against samples/rec.aoe2record
 └── samples/
-    └── README.md         <- drop sample .aoe2record files here (gitignored ideally)
+    └── rec.aoe2record    <- sample replay used by the tests
 ```
 
 ## Development
 
 ```bash
 cd analyzer
-pip install -e .
-python -m aoe2_analyzer analyze samples/whatever.aoe2record
-pytest
+pytest                 # tests add src/ to the path automatically (see pyproject)
+python -m aoe2_analyzer analyze samples/rec.aoe2record --build-order
 ```
 
-## Notes on the real parsing problem (for future me)
-
-- `.aoe2record` files are essentially a recorded command stream + a header, not a state dump.
-- Most stats (idle TC time, vils-by-age) have to be **reconstructed by simulating the command
-  log**, which is the hard part.
-- Consider leaning on existing community work rather than starting from zero — see `parser.py`
-  TODOs for candidate libraries to investigate.
+Adding a new unit/building name? Put the id in `gamedata.py`. Unknown ids render as
+`Unit #<id>` / `Building #<id>` so the build order stays readable without risking wrong labels.

@@ -1,29 +1,31 @@
 """Replay parsing for AoE2 DE .aoe2record files.
 
-#############################################################################
-# STATUS: partial real parsing 🎉
-#
-# `.aoe2record` is a compressed header (raw DEFLATE) followed by an
-# uncompressed body that is the recorded *command stream* (every action each
-# player took). We use the `mgz` library to walk the body, which is robust
-# across game versions.
-#
-# WHAT WORKS NOW (real data, read straight from the file):
-#   - game version string (e.g. "VER 9.4")
-#   - real game duration (summed from SYNC operations / postgame world_time)
-#   - per-player activity: total actions, BUILD count, MAKE (unit) count
-#   - player names (scraped from the header's DE string table)
-#
-# WHAT IS STILL TODO (needs simulating the command stream / full header parse):
-#   - civilizations per player  (mgz's full header parser does not yet support
-#     this exact DE sub-version, so civ is reported as "unknown")
-#   - Feudal/Castle/Imperial click & arrival times
-#   - villager count by age, resource distribution over time
-#   - Town Center idle time, farm count, housed time, build-order timeline
-#
-# If `mgz` is not installed, or the file can't be read, we fall back to the
-# old MOCK summary (flagged with is_mock=True) so the CLI/tests still run.
-#############################################################################
+An `.aoe2record` is a compressed header (raw DEFLATE) followed by an
+uncompressed body that is the recorded *command stream* (every action each
+player took, interleaved with SYNC time ticks). We walk the body with the
+`mgz` library, which is robust across game versions.
+
+Extracted from real data:
+  - game version string (e.g. "VER 9.4")
+  - real game duration (postgame world_time, or summed SYNC ticks)
+  - per-player age-up timings: when Feudal/Castle/Imperial were *clicked*
+    (read straight from RESEARCH actions on the age technologies)
+  - per-player build order: a chronological timeline of every unit queued
+    (MAKE + DE_QUEUE) and building placed (BUILD), with age markers — enough
+    to number "Villager #1..N" and the military up to each age
+  - per-player activity: total actions, building count, units queued
+  - player names (scraped from the header's DE string table)
+
+Age *arrival* time is reported as click + the standard research duration; it
+is flagged as an estimate because civ bonuses (e.g. Malay) are not applied.
+
+Still on the roadmap (needs simulating the full command stream / header):
+  - civilizations per player, maps
+  - resource distribution over time, villagers actually alive (vs queued)
+  - Town Center idle time, farm count, housed time
+
+If `mgz` is not installed or the file can't be read, parsing raises a clear
+error (no silent fallback) — see ReplayParseError.
 """
 
 from __future__ import annotations
@@ -34,44 +36,63 @@ import struct
 import zlib
 from typing import Optional
 
-from .models import AgeTiming, EconomySnapshot, PlayerSummary, ReplaySummary
+from .gamedata import building_name, unit_name
+from .models import AgeTiming, BuildOrderEvent, PlayerSummary, ReplaySummary
+
+# Age advance technologies, keyed by mgz RESEARCH technology_id.
+AGE_TECHS = {101: "Feudal", 102: "Castle", 103: "Imperial"}
+
+# Standard age research durations (seconds) with no civ/tech modifiers applied.
+# Used to estimate arrival time from the (real) click time.
+AGE_RESEARCH_SECONDS = {"Feudal": 130.0, "Castle": 160.0, "Imperial": 190.0}
+
+# Order ages should appear in, regardless of research order.
+_AGE_ORDER = ["Feudal", "Castle", "Imperial"]
+
+
+class ReplayParseError(Exception):
+    """Raised when an .aoe2record file cannot be parsed."""
 
 
 def parse_replay(path: str) -> ReplaySummary:
     """Parse an .aoe2record file into a ReplaySummary.
 
-    Tries real parsing first; falls back to a mock summary if anything goes
-    wrong (missing file, mgz not installed, unsupported format, etc.).
+    Raises ReplayParseError on any failure (missing file, mgz not installed,
+    unsupported format, etc.) so callers can report it clearly.
     """
     try:
         return _parse_real(path)
-    except Exception as exc:  # noqa: BLE001 - any failure -> graceful mock fallback
-        summary = _mock_summary(path)
-        summary.notes.insert(
-            0,
-            f"Real parsing failed ({type(exc).__name__}: {exc}); showing MOCK data.",
-        )
-        return summary
+    except ReplayParseError:
+        raise
+    except FileNotFoundError as exc:
+        raise ReplayParseError(f"file not found: {path}") from exc
+    except ImportError as exc:
+        raise ReplayParseError(
+            "the 'mgz' library is required to parse replays "
+            "(install with: pip install mgz)"
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 - surface anything else as a parse error
+        raise ReplayParseError(f"{type(exc).__name__}: {exc}") from exc
 
 
 # --------------------------------------------------------------------------- #
 # Real parsing
 # --------------------------------------------------------------------------- #
 
-# Action types we count as a meaningful "player action" with a player_id.
+
 def _parse_real(path: str) -> ReplaySummary:
-    from mgz import fast  # imported lazily so the mock path works without mgz
+    from mgz import fast  # imported lazily so a clear ImportError is raised above
     from mgz.fast import Operation
 
     with open(path, "rb") as handle:
         data = handle.read()
 
     if len(data) < 8:
-        raise ValueError("file too small to be an .aoe2record")
+        raise ReplayParseError("file too small to be an .aoe2record")
 
     header_len = struct.unpack("<I", data[0:4])[0]
     if not (8 < header_len < len(data)):
-        raise ValueError(f"implausible header length: {header_len}")
+        raise ReplayParseError(f"implausible header length: {header_len}")
 
     version = _read_version(data)
     names = _scrape_player_names(data)
@@ -84,7 +105,14 @@ def _parse_real(path: str) -> ReplaySummary:
     postgame_world_time: Optional[int] = None
     actions: dict[int, int] = {}
     builds: dict[int, int] = {}
-    makes: dict[int, int] = {}
+    units: dict[int, int] = {}  # total units queued (MAKE + DE_QUEUE, amount-summed)
+    # player_id -> {age_name -> click_time_seconds}
+    age_clicks: dict[int, dict[str, float]] = {}
+    # player_id -> chronological build-order events
+    events: dict[int, list[BuildOrderEvent]] = {}
+
+    def add_event(pid: int, t_sec: float, kind: str, name: str, count: int = 1) -> None:
+        events.setdefault(pid, []).append(BuildOrderEvent(t_sec, kind, name, count))
 
     while True:
         try:
@@ -109,10 +137,23 @@ def _parse_real(path: str) -> ReplaySummary:
             if isinstance(pid, int):
                 actions[pid] = actions.get(pid, 0) + 1
                 name = getattr(action, "name", "")
+                t_sec = total_ms / 1000.0
                 if name == "BUILD":
                     builds[pid] = builds.get(pid, 0) + 1
-                elif name == "MAKE":
-                    makes[pid] = makes.get(pid, 0) + 1
+                    add_event(pid, t_sec, "building", building_name(payload.get("building_id")))
+                elif name in ("MAKE", "DE_QUEUE"):
+                    # MAKE = single unit (AI); DE_QUEUE = batch with `amount` (human).
+                    amount = payload.get("amount")
+                    count = amount if isinstance(amount, int) and amount > 0 else 1
+                    units[pid] = units.get(pid, 0) + count
+                    add_event(pid, t_sec, "unit", unit_name(payload.get("unit_id")), count)
+                elif name == "RESEARCH":
+                    tech = payload.get("technology_id")
+                    age = AGE_TECHS.get(tech)
+                    if age is not None:
+                        # First click wins (ignore any duplicate/cancelled re-issues).
+                        age_clicks.setdefault(pid, {}).setdefault(age, t_sec)
+                        add_event(pid, t_sec, "age", f"{age} Age")
 
     duration_ms = postgame_world_time or total_ms
     duration_seconds = duration_ms / 1000.0 if duration_ms else None
@@ -127,29 +168,52 @@ def _parse_real(path: str) -> ReplaySummary:
                 player_id=pid,
                 name=name,
                 civ="unknown",  # TODO: full header parse for civ (see module docstring)
+                age_timings=_build_age_timings(age_clicks.get(pid, {})),
+                build_order=events.get(pid, []),
                 action_count=actions.get(pid),
                 build_count=builds.get(pid),
-                make_count=makes.get(pid),
-                military_units_produced=makes.get(pid),  # MAKE orders as a proxy
+                make_count=units.get(pid),  # total units queued (MAKE + DE_QUEUE)
+                military_units_produced=units.get(pid),  # queued units as a proxy
             )
         )
 
-    summary = ReplaySummary(
+    return ReplaySummary(
         source_file=path,
         map_name=None,  # TODO: requires full header parse
         game_duration_seconds=duration_seconds,
         game_version=version,
         players=players,
-        is_mock=False,
         notes=[
-            "Civilizations, ages, and economy stats are not extracted yet "
-            "(this DE sub-version isn't supported by mgz's full header parser).",
-            "Player names are scraped in slot order and may not align perfectly "
-            "with the action player_ids.",
-            "'Military produced' = count of MAKE orders, a proxy (queued != built).",
+            "Age CLICK times are read directly from the command stream (real). "
+            "ARRIVAL times are estimated as click + standard research duration "
+            "and ignore civ bonuses (e.g. Malay age up faster).",
+            "Build order counts units when QUEUED, not when they pop — a queued "
+            "villager takes ~25s to appear, and cancelled queues still count.",
+            "Players controlled by the AI issue age-ups via AI orders, so their "
+            "age timings may be missing.",
+            "Civilizations, maps, and economy stats (idle TC, vils-by-age) are "
+            "not extracted yet.",
         ],
     )
-    return summary
+
+
+def _build_age_timings(clicks: dict[str, float]) -> list[AgeTiming]:
+    """Turn {age_name: click_seconds} into ordered AgeTiming rows."""
+    timings: list[AgeTiming] = []
+    for age in _AGE_ORDER:
+        click = clicks.get(age)
+        if click is None:
+            continue
+        research = AGE_RESEARCH_SECONDS[age]
+        timings.append(
+            AgeTiming(
+                age=age,
+                click_time=click,
+                arrival_time=click + research,
+                arrival_estimated=True,
+            )
+        )
+    return timings
 
 
 def _read_version(data: bytes) -> Optional[str]:
@@ -191,75 +255,3 @@ def _scrape_player_names(data: bytes, limit: int = 50_000) -> list[str]:
         seen.add(text)
         names.append(text)
     return names
-
-
-# --------------------------------------------------------------------------- #
-# Mock fallback (used when mgz is missing or the file can't be parsed)
-# --------------------------------------------------------------------------- #
-
-
-def _mock_summary(path: str) -> ReplaySummary:
-    """Build a believable-but-fake ReplaySummary for development/testing."""
-    goth_player = PlayerSummary(
-        player_id=1,
-        name="You (Goths)",
-        civ="Goths",
-        team=1,
-        winner=True,
-        age_timings=[
-            AgeTiming(age="Feudal", click_time=600.0, arrival_time=640.0),
-            AgeTiming(age="Castle", click_time=900.0, arrival_time=1060.0),
-            AgeTiming(age="Imperial", click_time=1800.0, arrival_time=1980.0),
-        ],
-        economy_timeline=[
-            EconomySnapshot(
-                game_time=640.0, villagers=28, on_food=16, on_wood=8, on_gold=2,
-                on_stone=2, farms=4, town_centers=1, idle_tc_seconds=5.0,
-                housed_seconds=12.0,
-            ),
-            EconomySnapshot(
-                game_time=1060.0, villagers=40, on_food=22, on_wood=10, on_gold=4,
-                on_stone=4, farms=9, town_centers=1, idle_tc_seconds=18.0,
-                housed_seconds=20.0,
-            ),
-            EconomySnapshot(
-                game_time=1500.0, villagers=80, on_food=44, on_wood=20, on_gold=10,
-                on_stone=6, farms=22, town_centers=3, idle_tc_seconds=35.0,
-                housed_seconds=28.0,
-            ),
-            EconomySnapshot(
-                game_time=1980.0, villagers=102, on_food=50, on_wood=28, on_gold=18,
-                on_stone=6, farms=30, town_centers=3, idle_tc_seconds=52.0,
-                housed_seconds=33.0,
-            ),
-        ],
-        final_villagers=102,
-        peak_town_centers=3,
-        total_idle_tc_seconds=52.0,
-        total_housed_seconds=33.0,
-        military_units_produced=140,
-    )
-
-    ally_player = PlayerSummary(
-        player_id=2,
-        name="Pocket (Franks)",
-        civ="Franks",
-        team=1,
-        winner=True,
-        age_timings=[
-            AgeTiming(age="Feudal", click_time=540.0, arrival_time=580.0),
-            AgeTiming(age="Castle", click_time=820.0, arrival_time=970.0),
-        ],
-        final_villagers=95,
-        peak_town_centers=3,
-        military_units_produced=70,
-    )
-
-    return ReplaySummary(
-        source_file=path,
-        map_name="Arabia (mock)",
-        game_duration_seconds=2400.0,
-        players=[goth_player, ally_player],
-        is_mock=True,
-        notes=["This is MOCK data — real parsing was unavailable."],
-    )

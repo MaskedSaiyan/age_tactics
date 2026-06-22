@@ -1,8 +1,9 @@
 """Data models for a parsed AoE2 DE replay.
 
-We use stdlib dataclasses (no third-party dependency) to keep the scaffold light.
-These model the *intended* output shape of the analyzer — the parser does not yet
-populate them from real replay data.
+We use stdlib dataclasses (no third-party dependency) to keep the package light.
+`AgeTiming`, `PlayerSummary`, and `ReplaySummary` are populated from real replay
+data by the parser. `EconomySnapshot` models the per-tick economy view we are
+building toward (idle TC time, vils-by-age); it is not populated yet.
 """
 
 from __future__ import annotations
@@ -20,8 +21,9 @@ class AgeTiming:
     """
 
     age: str  # "Feudal", "Castle", or "Imperial"
-    click_time: Optional[float] = None  # when the "advance" was clicked
-    arrival_time: Optional[float] = None  # when the age was actually reached
+    click_time: Optional[float] = None  # when the "advance" was clicked (real)
+    arrival_time: Optional[float] = None  # when the age was reached
+    arrival_estimated: bool = False  # True when arrival = click + standard research time
 
     @property
     def transition_seconds(self) -> Optional[float]:
@@ -29,6 +31,21 @@ class AgeTiming:
         if self.click_time is None or self.arrival_time is None:
             return None
         return self.arrival_time - self.click_time
+
+
+@dataclass
+class BuildOrderEvent:
+    """One step in a reconstructed build order.
+
+    `kind` is "unit" (trained/queued), "building" (foundation placed), or
+    "age" (an age-up was clicked). `count` is how many were queued in a single
+    action (DE_QUEUE can batch). Times are seconds from game start.
+    """
+
+    game_time: float
+    kind: str  # "unit" | "building" | "age"
+    name: str  # "Villager", "House", "Feudal Age", ...
+    count: int = 1
 
 
 @dataclass
@@ -58,6 +75,7 @@ class PlayerSummary:
     winner: Optional[bool] = None
 
     age_timings: list[AgeTiming] = field(default_factory=list)
+    build_order: list[BuildOrderEvent] = field(default_factory=list)
     economy_timeline: list[EconomySnapshot] = field(default_factory=list)
 
     # Convenience headline stats (reconstructed from the timeline).
@@ -90,9 +108,6 @@ class ReplaySummary:
     game_duration_seconds: Optional[float] = None
     game_version: Optional[str] = None  # e.g. "VER 9.4" (DE)
     players: list[PlayerSummary] = field(default_factory=list)
-
-    # Flag so downstream code / users know this isn't real data yet.
-    is_mock: bool = False
 
     # Human-readable caveats about what could / couldn't be extracted.
     notes: list[str] = field(default_factory=list)
