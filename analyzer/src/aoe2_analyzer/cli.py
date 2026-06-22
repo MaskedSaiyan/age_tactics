@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from typing import Optional, Sequence
 
@@ -21,6 +22,7 @@ from .report import (
     format_villager_list,
     print_report,
     print_summary,
+    suggested_name,
 )
 
 
@@ -43,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--summary-only",
         action="store_true",
         help="Print only the overview section (no build order / assignments).",
+    )
+    analyze.add_argument(
+        "-r",
+        "--rename",
+        action="store_true",
+        help="After analysing, suggest a filename and offer to rename the file.",
     )
 
     villagers = subparsers.add_parser(
@@ -91,6 +99,54 @@ def _load(replay: str):
         return None
 
 
+def _unique_path(path: str) -> str:
+    """Return `path`, or path with -2/-3/... before the extension if it exists."""
+    if not os.path.exists(path):
+        return path
+    root, ext = os.path.splitext(path)
+    n = 2
+    while os.path.exists(f"{root}-{n}{ext}"):
+        n += 1
+    return f"{root}-{n}{ext}"
+
+
+def _suggest_and_maybe_rename(replay: str, summary, do_rename: bool) -> None:
+    names = [p.name for p in summary.players]
+    suggested = suggested_name(names, summary.game_duration_seconds) + ".aoe2record"
+    print(f"\nSuggested filename: {suggested}")
+
+    if not do_rename:
+        print("(run with --rename to rename this file)")
+        return
+    if not sys.stdin.isatty():
+        print("(no interactive terminal; skipping rename)")
+        return
+
+    prompt = "Rename it? [Enter = use suggestion / n = keep / or type a new name]: "
+    try:
+        answer = input(prompt).strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\nKept original name.")
+        return
+
+    if answer.lower() in ("n", "no"):
+        print("Kept original name.")
+        return
+
+    chosen = suggested if answer == "" else answer
+    if not chosen.endswith(".aoe2record"):
+        chosen += ".aoe2record"
+    # Stay in the same directory; ignore any path the user typed.
+    target = os.path.join(os.path.dirname(replay), os.path.basename(chosen))
+    target = _unique_path(target)
+    try:
+        os.rename(replay, target)
+    except OSError as exc:
+        print(f"error: could not rename: {exc}", file=sys.stderr)
+        return
+    print(f"Renamed -> {os.path.basename(target)}")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -103,6 +159,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print_summary(summary)
         else:
             print_report(summary)
+        _suggest_and_maybe_rename(args.replay, summary, args.rename)
         return 0
 
     if args.command == "villagers":
