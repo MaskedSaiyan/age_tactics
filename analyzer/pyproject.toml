@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoe2-analyzer"
+version = "0.0.1"
+description = "Exploratory parser for AoE2 DE replay/save files (.aoe2record)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "aoe2-tactics-lab" }]
+keywords = ["aoe2", "age-of-empires", "replay", "analysis"]
+dependencies = [
+    "mgz>=1.8",  # parses the .aoe2record command stream (body); header parse is partial
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+aoe2-analyzer = "aoe2_analyzer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
