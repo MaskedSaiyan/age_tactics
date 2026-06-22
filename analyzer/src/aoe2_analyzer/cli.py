@@ -93,6 +93,17 @@ def build_parser() -> argparse.ArgumentParser:
         "replays", nargs="+", help="One or more .aoe2record files (globs work).",
     )
 
+    versus = subparsers.add_parser(
+        "versus",
+        help="Head-to-head: compare two players within ONE replay.",
+    )
+    versus.add_argument("replay", help="Path to a .aoe2record file.")
+    versus.add_argument(
+        "players", nargs=2, metavar="PLAYER",
+        help="Two players (name substring or id), e.g. soad shura.",
+    )
+    versus.add_argument("-o", "--out", default=None, help="Write the table to this file.")
+
     compare = subparsers.add_parser(
         "compare",
         help="Compare key metrics for one player across several replays.",
@@ -209,6 +220,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             print(text, end="")
             _suggest_and_maybe_rename(args.replay, summary, args.rename)
+        return 0
+
+    if args.command == "versus":
+        summary = _load(args.replay)
+        if summary is None:
+            return 1
+        matchup_players: list = []
+        for q in args.players:
+            p = find_player(summary, q)
+            if p is None:
+                names = ", ".join(pl.name for pl in summary.players)
+                print(f"error: no player matching '{q}'. Players: {names}",
+                      file=sys.stderr)
+                return 1
+            matchup_players.append((p.name, p))
+        text = format_compare(matchup_players)
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            print(f"Wrote head-to-head to {args.out}")
+        else:
+            print(text, end="")
         return 0
 
     if args.command == "compare":

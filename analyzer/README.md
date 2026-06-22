@@ -57,6 +57,9 @@ python -m aoe2_analyzer analyze game.aoe2record --player soad --out soad-game.tx
 # Compare one player's key metrics across several games (why some go better).
 python -m aoe2_analyzer compare game1.aoe2record game2.aoe2record --player soad
 
+# Head-to-head: compare two players within ONE game (you vs your rival).
+python -m aoe2_analyzer versus game.aoe2record soad shura
+
 # Analyse, then interactively rename the file (Enter = use suggestion,
 # n = keep, or type your own name; '.aoe2record' is added automatically).
 python -m aoe2_analyzer analyze path/to/replay.aoe2record --rename
