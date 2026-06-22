@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 
 from .models import AgeTiming, BuildOrderEvent, PlayerSummary, ReplaySummary
 from .resource import infer_resource
@@ -411,6 +412,15 @@ def suggested_name(names: list[str], duration_seconds: float | None = None) -> s
         slug += f"-{int(duration_seconds // 60)}m"
     slug = re.sub(r"[^A-Za-z0-9._-]+", "_", slug).strip("_")
     return slug or "unknown"
+
+
+def rename_command(path: str, summary: ReplaySummary) -> str:
+    """A ready-to-paste 'mv <path> <dir>/<suggested>' line for quick renaming."""
+    suggested = suggested_name(
+        [p.name for p in summary.players], summary.game_duration_seconds
+    ) + ".aoe2record"
+    target = os.path.join(os.path.dirname(path), suggested)
+    return f"mv {shlex.quote(path)} {shlex.quote(target)}"
 
 
 def format_identity(path: str, summary: ReplaySummary) -> str:

@@ -22,6 +22,7 @@ from .report import (
     format_villager_list,
     print_report,
     print_summary,
+    rename_command,
     suggested_name,
 )
 
@@ -113,10 +114,11 @@ def _unique_path(path: str) -> str:
 def _suggest_and_maybe_rename(replay: str, summary, do_rename: bool) -> None:
     names = [p.name for p in summary.players]
     suggested = suggested_name(names, summary.game_duration_seconds) + ".aoe2record"
-    print(f"\nSuggested filename: {suggested}")
 
     if not do_rename:
-        print("(run with --rename to rename this file)")
+        # Just print a copy-paste-ready mv command.
+        print("\nTo rename (copy-paste):")
+        print(f"  {rename_command(replay, summary)}")
         return
     if not sys.stdin.isatty():
         print("(no interactive terminal; skipping rename)")
@@ -185,7 +187,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 print(f"{replay}: error: {exc}", file=sys.stderr)
                 exit_code = 1
                 continue
-            print(format_identity(replay, summary))
+            print(f"# {format_identity(replay, summary)}")
+            print(rename_command(replay, summary))
         return exit_code
 
     if args.command == "assignments":
