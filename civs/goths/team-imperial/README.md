@@ -23,6 +23,25 @@ them with the cheapest army in the game at the fastest production in the game.
 
 ---
 
+## Your reference game *(this works — you've done it)*
+
+Pulled from your **4v4 with rakeru / rviveros / shura** (2026-06-20, a 78-minute war). You did
+*nothing* but boom, then drowned them when they came knocking — your best execution of this plan:
+
+| checkpoint | you | read |
+|---|---|---|
+| Feudal | 11:39, **0 military** | pure boom, no distractions |
+| Castle | 17:31, **0 military** | still booming — no early army at all |
+| Imperial | 42:22, **100 villagers** | hit the vil cap, *then* flipped to army |
+| Final | **857 military**, idle only 09:59 | the faucet — biggest army in any of your games |
+
+**The one thing to improve:** Imperial at **42:22** is late (you sat in Castle for ~25 min). The
+boom was clean, so the fix isn't *more* eco — it's clicking Imperial **sooner** and **laying the
+barracks during Castle**, so the 857-flood is ready *when they hit you*, not after. Turn "defend,
+then flood" into "flood on time."
+
+---
+
 ## Pros & Cons
 
 **✅ Pros**
