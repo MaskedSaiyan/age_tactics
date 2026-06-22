@@ -122,6 +122,9 @@ class PlayerSummary:
     main_tc_last_seconds: Optional[float] = None  # last villager queued from it
     main_tc_idle_gaps: list[IdleGap] = field(default_factory=list)
 
+    # Drop-off buildings for resource inference: (build_time, x, y, resource).
+    resource_dropoffs: list[tuple] = field(default_factory=list)
+
     # Real, robustly-extractable activity stats from the command stream.
     # (These come from counting operations in the body — see parser.py.)
     action_count: Optional[int] = None  # total player actions issued

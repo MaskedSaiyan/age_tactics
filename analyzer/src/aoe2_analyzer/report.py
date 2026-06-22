@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .models import AgeTiming, BuildOrderEvent, PlayerSummary, ReplaySummary
+from .resource import infer_resource
 
 # Rough "good 1v1" click-up targets (seconds), for orientation only.
 # These are ballpark benchmarks, not hard rules — they vary by map/strategy.
@@ -220,10 +221,18 @@ def _fmt_pos(x: float | None, y: float | None) -> str:
     return f"@ ({x:.1f}, {y:.1f})"
 
 
+def _player_dropoffs(summary: ReplaySummary, owner: int | None) -> list[tuple]:
+    if owner is None:
+        return []
+    p = next((pl for pl in summary.players if pl.player_id == owner), None)
+    return p.resource_dropoffs if p else []
+
+
 def format_unit_log(summary: ReplaySummary, object_id: int) -> str:
     """Return the chronological command log for one unit (by object id)."""
     cmds = summary.unit_commands.get(object_id)
     owner = summary.unit_owner.get(object_id)
+    dropoffs = _player_dropoffs(summary, owner)
     owner_name = None
     if owner is not None:
         owner_name = next(
@@ -246,6 +255,9 @@ def format_unit_log(summary: ReplaySummary, object_id: int) -> str:
         bits = [f"  {_fmt_time(c.game_time)}  {verb:<8}"]
         if c.detail:
             bits.append(f"-> {c.detail}")
+        elif c.action == "ORDER":
+            res = infer_resource(c.x, c.y, dropoffs, c.game_time)
+            bits.append(f"-> {res}" if res else "-> gather")
         elif c.target_id not in (None, -1):
             bits.append(f"-> target {c.target_id}")
         else:
@@ -254,6 +266,8 @@ def format_unit_log(summary: ReplaySummary, object_id: int) -> str:
         if pos:
             bits.append(pos)
         lines.append(" ".join(bits))
+    lines.append("")
+    lines.append("(resource = inferred from nearest drop-off camp; best-effort, not exact)")
     return "\n".join(lines) + "\n"
 
 
@@ -284,6 +298,67 @@ def format_villager_list(summary: ReplaySummary, player_id: int | None = None) -
             lines.append(
                 f"  obj {oid:<6} first seen {_fmt_time(first)}   {len(cmds)} commands"
             )
+    return "\n".join(lines) + "\n"
+
+
+# Buildings a villager constructs that imply what it then gathers.
+_BUILD_RESOURCE = {"Farm": "food", "Mill": "food", "Lumber Camp": "wood",
+                   "Mining Camp": "gold/stone"}
+
+
+def _assignment(task, dropoffs: list[tuple]) -> tuple[str, str]:
+    """(resource, human-readable detail) for a villager's first task command."""
+    if task is None:
+        return "unknown", "no task command recorded"
+    where = _fmt_pos(task.x, task.y)
+    when = _fmt_time(task.game_time)
+    if task.action == "BUILD":
+        res = _BUILD_RESOURCE.get(task.detail or "")
+        if res:
+            return res, f"built {task.detail} ({res}) at {when} {where}".rstrip()
+        # Non-resource build (house, etc.) — fall back to position inference.
+        res = infer_resource(task.x, task.y, dropoffs, task.game_time) or "unknown"
+        return res, f"built {task.detail} at {when} {where}".rstrip()
+    res = infer_resource(task.x, task.y, dropoffs, task.game_time) or "unknown"
+    return res, f"first sent to {res} at {when} {where}".rstrip()
+
+
+def format_assignments(summary: ReplaySummary, player_id: int) -> str:
+    """Number villagers by real appearance order and show their first task.
+
+    Unlike the build order (numbered by *queue* order, which omits the starting
+    villagers), this lists villagers by when they first received a command —
+    their true order — and infers the resource of their first gather order.
+    """
+    dropoffs = _player_dropoffs(summary, player_id)
+    villagers = [v for v in summary.builder_ids if summary.unit_owner.get(v) == player_id]
+    villagers.sort(key=lambda o: summary.unit_commands[o][0].game_time)
+
+    owner_name = next(
+        (p.name for p in summary.players if p.player_id == player_id), f"player {player_id}"
+    )
+    lines = ["=" * 60, f"VILLAGER ASSIGNMENTS — {owner_name}", "=" * 60]
+    if not villagers:
+        lines.append("(no villagers identified for this player)")
+        return "\n".join(lines) + "\n"
+
+    tally: dict[str, int] = {}
+    for i, oid in enumerate(villagers, 1):
+        cmds = summary.unit_commands[oid]
+        first_seen = cmds[0].game_time
+        # First task = earliest ORDER (gather) or BUILD (often farms -> food).
+        task = next((c for c in cmds if c.action in ("ORDER", "BUILD")), None)
+        res, detail = _assignment(task, dropoffs)
+        tally[res] = tally.get(res, 0) + 1
+        lines.append(f"  Villager #{i:<2} (obj {oid})  appeared {_fmt_time(first_seen)}  — {detail}")
+
+    lines.append("")
+    lines.append("First-task tally (inferred):")
+    for res, n in sorted(tally.items(), key=lambda kv: -kv[1]):
+        lines.append(f"  {res:<12} {n}")
+    lines.append("")
+    lines.append("(villagers = units that issued a BUILD; resource inferred from nearest")
+    lines.append(" drop-off camp at order time — best-effort, weak before camps exist)")
     return "\n".join(lines) + "\n"
 
 

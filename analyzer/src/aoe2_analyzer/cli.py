@@ -15,6 +15,7 @@ from typing import Optional, Sequence
 from . import __version__
 from .parser import ReplayParseError, parse_replay
 from .report import (
+    format_assignments,
     format_unit_log,
     format_villager_list,
     print_build_orders,
@@ -60,6 +61,16 @@ def build_parser() -> argparse.ArgumentParser:
     unit.add_argument("replay", help="Path to a .aoe2record file.")
     unit.add_argument("object_id", type=int, help="Object id of the unit to follow.")
 
+    assignments = subparsers.add_parser(
+        "assignments",
+        help="Number villagers by appearance and infer each one's first resource.",
+    )
+    assignments.add_argument("replay", help="Path to a .aoe2record file.")
+    assignments.add_argument(
+        "-p", "--player", type=int, default=1,
+        help="Player id to analyse (default: 1).",
+    )
+
     return parser
 
 
@@ -96,6 +107,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if summary is None:
             return 1
         print(format_unit_log(summary, args.object_id), end="")
+        return 0
+
+    if args.command == "assignments":
+        summary = _load(args.replay)
+        if summary is None:
+            return 1
+        print(format_assignments(summary, args.player), end="")
         return 0
 
     parser.print_help()

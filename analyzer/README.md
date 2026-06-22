@@ -32,9 +32,8 @@ yet, so those still show `unknown`.
 - **Resources are NOT in the replay** — food/wood/gold/stone are simulated state, not
   recorded (the postgame block has none either). A resource-over-time view would require a
   full economy simulation (villager assignments × gather rates) and would be an estimate.
-- **Per-villager task tracking**: `ORDER` commands do record which villager (object id) was
-  sent where (target id + map x/y), so individual villagers are followable — but the replay
-  carries no resource *type* for the target, so "wood vs gold vs food" can only be inferred.
+- **Exact resource types** — currently inferred from drop-off proximity (see above). True
+  types would need the header's object table, which isn't parsed for this DE sub-version.
 - **Farm count** and **number of Town Centers** (catch the Goth "too many TCs" trap).
 - **Housed time** — how long you spent population-blocked.
 
@@ -51,16 +50,21 @@ python -m aoe2_analyzer analyze path/to/replay.aoe2record
 # Same, plus the full numbered build-order timeline.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record --build-order
 
+# Number villagers by appearance and infer each one's first resource.
+python -m aoe2_analyzer assignments path/to/replay.aoe2record --player 1
+
 # List villager-like units (builders) and their object ids.
 python -m aoe2_analyzer villagers path/to/replay.aoe2record --player 1
 
-# Follow one villager: every order it received (target id + map x/y).
+# Follow one villager: every order it received (inferred resource + map x/y).
 python -m aoe2_analyzer unit path/to/replay.aoe2record 2810
 ```
 
-> Following a unit is exact (object id + target id + position), but the replay
-> doesn't carry the target's *type*, so "wood vs gold vs food" isn't labelled —
-> only the target object and where on the map it was.
+> Following a unit is exact (object id + target id + position). The resource
+> (wood/gold/food) is **inferred** from the nearest drop-off camp at the time of
+> the order — a best-effort guess: gold and stone share one camp (so they show
+> as `gold/stone`), and it's weak in the early game before any camp exists
+> (those show as `unknown`/`elsewhere`).
 
 ## Project layout
 

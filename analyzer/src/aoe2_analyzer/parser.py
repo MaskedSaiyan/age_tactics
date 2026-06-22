@@ -37,6 +37,7 @@ import zlib
 from typing import Optional
 
 from .gamedata import VILLAGER_ID, building_name, unit_name
+from .resource import dropoff_resource
 from .models import (
     AgeTiming,
     BuildOrderEvent,
@@ -138,6 +139,8 @@ def _parse_real(path: str) -> ReplaySummary:
     unit_commands: dict[int, list[UnitCommand]] = {}
     unit_owner: dict[int, int] = {}
     builder_ids: set[int] = set()
+    # player_id -> drop-off buildings for resource inference: (time, x, y, res).
+    dropoffs: dict[int, list[tuple]] = {}
 
     def add_event(pid: int, t_sec: float, kind: str, name: str, count: int = 1) -> None:
         events.setdefault(pid, []).append(BuildOrderEvent(t_sec, kind, name, count))
@@ -168,7 +171,13 @@ def _parse_real(path: str) -> ReplaySummary:
                 t_sec = total_ms / 1000.0
                 if name == "BUILD":
                     builds[pid] = builds.get(pid, 0) + 1
-                    add_event(pid, t_sec, "building", building_name(payload.get("building_id")))
+                    bid = payload.get("building_id")
+                    add_event(pid, t_sec, "building", building_name(bid))
+                    res = dropoff_resource(bid)
+                    if res is not None:
+                        dropoffs.setdefault(pid, []).append(
+                            (t_sec, payload.get("x"), payload.get("y"), res)
+                        )
                 elif name in ("MAKE", "DE_QUEUE"):
                     # MAKE = single unit (AI); DE_QUEUE = batch with `amount` (human).
                     amount = payload.get("amount")
@@ -237,6 +246,7 @@ def _parse_real(path: str) -> ReplaySummary:
                 main_tc_last_seconds=tc["last"],
                 total_idle_tc_seconds=tc["idle_total"],
                 main_tc_idle_gaps=tc["gaps"],
+                resource_dropoffs=dropoffs.get(pid, []),
             )
         )
 

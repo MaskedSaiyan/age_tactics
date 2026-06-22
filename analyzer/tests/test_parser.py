@@ -11,6 +11,7 @@ import pytest
 
 from aoe2_analyzer.models import AgeTiming, ReplaySummary
 from aoe2_analyzer.parser import ReplayParseError, parse_replay
+from aoe2_analyzer.resource import infer_resource
 
 SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "rec.aoe2record")
 
@@ -75,6 +76,29 @@ def test_real_parse_reconstructs_build_order():
     assert any(e.kind == "building" for e in p.build_order)
     # Age markers appear in the timeline too.
     assert any(e.kind == "age" for e in p.build_order)
+
+
+def test_infer_resource_by_proximity():
+    # (build_time, x, y, resource)
+    dropoffs = [(100.0, 10.0, 10.0, "wood"), (200.0, 50.0, 50.0, "food")]
+    # Near the wood camp -> wood.
+    assert infer_resource(11.0, 11.0, dropoffs, at_time=150.0) == "wood"
+    # Near the food camp; built later but within the look-ahead window -> food.
+    assert infer_resource(51.0, 49.0, dropoffs, at_time=150.0) == "food"
+    # Far from every camp -> "elsewhere".
+    assert infer_resource(500.0, 500.0, dropoffs, at_time=300.0) == "elsewhere"
+    # No data -> None.
+    assert infer_resource(None, None, dropoffs) is None
+    assert infer_resource(1.0, 1.0, []) is None
+
+
+@pytest.mark.skipif(not os.path.isfile(SAMPLE), reason="no sample .aoe2record")
+def test_real_parse_collects_dropoffs():
+    summary = parse_replay(SAMPLE)
+    aged = [p for p in summary.players if p.age_timings]
+    assert aged
+    # The human built drop-off camps, so inference has something to match.
+    assert any(p.resource_dropoffs for p in aged)
 
 
 @pytest.mark.skipif(not os.path.isfile(SAMPLE), reason="no sample .aoe2record")
