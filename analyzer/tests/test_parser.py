@@ -11,6 +11,7 @@ import pytest
 
 from aoe2_analyzer.models import AgeTiming, ReplaySummary
 from aoe2_analyzer.parser import ReplayParseError, parse_replay
+from aoe2_analyzer.report import matchup, suggested_name
 from aoe2_analyzer.resource import infer_resource
 
 SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "rec.aoe2record")
@@ -76,6 +77,15 @@ def test_real_parse_reconstructs_build_order():
     assert any(e.kind == "building" for e in p.build_order)
     # Age markers appear in the timeline too.
     assert any(e.kind == "age" for e in p.build_order)
+
+
+def test_matchup_and_suggested_name():
+    assert matchup(["soad", "PromiDE"]) == "soad vs PromiDE"
+    assert matchup([]) == "unknown"
+    # Suggested name is slugged and includes duration in minutes.
+    assert suggested_name(["soad", "PromiDE"], 2107.0) == "soad-vs-PromiDE-35m"
+    # Unsafe characters become underscores.
+    assert "/" not in suggested_name(["a/b", "c d"], None)
 
 
 def test_infer_resource_by_proximity():

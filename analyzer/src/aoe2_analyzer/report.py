@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import re
+
 from .models import AgeTiming, BuildOrderEvent, PlayerSummary, ReplaySummary
 from .resource import infer_resource
 
@@ -392,6 +395,34 @@ def format_report(summary: ReplaySummary) -> str:
         parts.append(format_assignments(summary, p.player_id))
 
     return "\n".join(parts)
+
+
+def matchup(names: list[str]) -> str:
+    """'A vs B' from scraped player names (or 'unknown')."""
+    real = [n for n in names if n]
+    return " vs ".join(real) if real else "unknown"
+
+
+def suggested_name(names: list[str], duration_seconds: float | None = None) -> str:
+    """A filesystem-safe slug like 'soad-vs-PromiDE-35m' for renaming."""
+    real = [n for n in names if n] or ["unknown"]
+    slug = "-vs-".join(real)
+    if duration_seconds:
+        slug += f"-{int(duration_seconds // 60)}m"
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", slug).strip("_")
+    return slug or "unknown"
+
+
+def format_identity(path: str, summary: ReplaySummary) -> str:
+    """One line per replay: 'file: A vs B  [VER 9.4, 35:07]  -> suggested.aoe2record'."""
+    base = os.path.basename(path)
+    names = [p.name for p in summary.players]
+    version = summary.game_version or "?"
+    dur = _fmt_time(summary.game_duration_seconds)
+    return (
+        f"{base}: {matchup(names)}  [{version}, {dur}]"
+        f"  -> {suggested_name(names, summary.game_duration_seconds)}.aoe2record"
+    )
 
 
 def print_report(summary: ReplaySummary) -> None:

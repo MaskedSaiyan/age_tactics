@@ -50,6 +50,10 @@ python -m aoe2_analyzer analyze path/to/replay.aoe2record
 
 # Just the overview section (timings, pace, TC idle, activity).
 python -m aoe2_analyzer analyze path/to/replay.aoe2record --summary-only
+
+# Identify many replays at once (who-vs-who + a suggested filename to rename to).
+python -m aoe2_analyzer id *.aoe2record
+#   rec.aoe2record: soad vs PromiDE  [VER 9.4, 35:07]  -> soad-vs-PromiDE-35m.aoe2record
 ```
 
 The `analyze` report bundles everything below. The same views are also available

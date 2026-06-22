@@ -16,6 +16,7 @@ from . import __version__
 from .parser import ReplayParseError, parse_replay
 from .report import (
     format_assignments,
+    format_identity,
     format_unit_log,
     format_villager_list,
     print_report,
@@ -60,6 +61,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     unit.add_argument("replay", help="Path to a .aoe2record file.")
     unit.add_argument("object_id", type=int, help="Object id of the unit to follow.")
+
+    identify = subparsers.add_parser(
+        "id",
+        help="Quickly print who-vs-who for one or more replays (to rename them).",
+    )
+    identify.add_argument(
+        "replays", nargs="+", help="One or more .aoe2record files (globs work).",
+    )
 
     assignments = subparsers.add_parser(
         "assignments",
@@ -109,6 +118,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 1
         print(format_unit_log(summary, args.object_id), end="")
         return 0
+
+    if args.command == "id":
+        exit_code = 0
+        for replay in args.replays:
+            try:
+                summary = parse_replay(replay)
+            except ReplayParseError as exc:
+                print(f"{replay}: error: {exc}", file=sys.stderr)
+                exit_code = 1
+                continue
+            print(format_identity(replay, summary))
+        return exit_code
 
     if args.command == "assignments":
         summary = _load(args.replay)
