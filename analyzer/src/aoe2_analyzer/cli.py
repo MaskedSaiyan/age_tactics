@@ -9,12 +9,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import glob
 import os
 import sys
+import time
 from typing import Optional, Sequence
 
 from . import __version__
-from .parser import ReplayParseError, parse_replay
+from .parser import ReplayParseError, parse_replay, quick_identify
 from .report import (
     find_player,
     format_assignments,
@@ -85,12 +87,25 @@ def build_parser() -> argparse.ArgumentParser:
     unit.add_argument("replay", help="Path to a .aoe2record file.")
     unit.add_argument("object_id", type=int, help="Object id of the unit to follow.")
 
+    scan = subparsers.add_parser(
+        "scan",
+        help="Fast header-only scan of a folder: who's in each game, newest first.",
+    )
+    scan.add_argument(
+        "paths", nargs="+",
+        help="Folders and/or .aoe2record files (globs work).",
+    )
+
     identify = subparsers.add_parser(
         "id",
-        help="Quickly print who-vs-who for one or more replays (to rename them).",
+        help="Print who-vs-who + an mv line for replays; --rename applies it.",
     )
     identify.add_argument(
-        "replays", nargs="+", help="One or more .aoe2record files (globs work).",
+        "paths", nargs="+", help="Folders and/or .aoe2record files (globs work).",
+    )
+    identify.add_argument(
+        "-r", "--rename", action="store_true",
+        help="Actually rename each file to its suggested name (collision-safe).",
     )
 
     versus = subparsers.add_parser(
@@ -138,6 +153,25 @@ def _load(replay: str):
     except ReplayParseError as exc:
         print(f"error: could not parse replay: {exc}", file=sys.stderr)
         return None
+
+
+def _expand_replays(paths: Sequence[str]) -> list[str]:
+    """Expand folders and globs into a de-duplicated list of .aoe2record files."""
+    files: list[str] = []
+    for p in paths:
+        if os.path.isdir(p):
+            files += sorted(glob.glob(os.path.join(p, "*.aoe2record")))
+        elif any(c in p for c in "*?["):
+            files += sorted(glob.glob(p))
+        else:
+            files.append(p)
+    seen: set[str] = set()
+    out: list[str] = []
+    for f in files:
+        if f not in seen:
+            seen.add(f)
+            out.append(f)
+    return out
 
 
 def _unique_path(path: str) -> str:
@@ -282,17 +316,62 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(format_unit_log(summary, args.object_id), end="")
         return 0
 
+    if args.command == "scan":
+        files = _expand_replays(args.paths)
+        rows = []
+        for f in files:
+            try:
+                info = quick_identify(f)
+            except ReplayParseError as exc:
+                print(f"{f}: {exc}", file=sys.stderr)
+                continue
+            mtime = os.path.getmtime(f) if os.path.exists(f) else 0
+            rows.append((mtime, f, info))
+        if not rows:
+            print("No replays found.", file=sys.stderr)
+            return 1
+        rows.sort(key=lambda r: -r[0])  # newest first
+        print(f"{len(rows)} replay(s), newest first:\n")
+        for mtime, f, info in rows:
+            ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime)) if mtime else "----"
+            names = ", ".join(n for n in info["names"] if n) or "unknown"
+            print(f"{ts}  {os.path.basename(f)}")
+            print(f"                  {names}")
+        return 0
+
     if args.command == "id":
+        files = _expand_replays(args.paths)
         exit_code = 0
-        for replay in args.replays:
+        renamed = 0
+        for replay in files:
             try:
                 summary = parse_replay(replay)
             except ReplayParseError as exc:
                 print(f"{replay}: error: {exc}", file=sys.stderr)
                 exit_code = 1
                 continue
-            print(f"# {format_identity(replay, summary)}")
-            print(rename_command(replay, summary))
+            if not args.rename:
+                print(f"# {format_identity(replay, summary)}")
+                print(rename_command(replay, summary))
+                continue
+            target_name = suggested_name(
+                [p.name for p in summary.players], summary.game_duration_seconds
+            ) + ".aoe2record"
+            target = os.path.join(os.path.dirname(replay), target_name)
+            if os.path.abspath(target) == os.path.abspath(replay):
+                print(f"{os.path.basename(replay)}: already named — skipped")
+                continue
+            target = _unique_path(target)
+            try:
+                os.rename(replay, target)
+            except OSError as exc:
+                print(f"{replay}: could not rename: {exc}", file=sys.stderr)
+                exit_code = 1
+                continue
+            print(f"{os.path.basename(replay)}  ->  {os.path.basename(target)}")
+            renamed += 1
+        if args.rename:
+            print(f"\nRenamed {renamed} file(s).")
         return exit_code
 
     if args.command == "assignments":

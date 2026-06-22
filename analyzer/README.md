@@ -64,10 +64,21 @@ python -m aoe2_analyzer versus game.aoe2record soad shura
 # n = keep, or type your own name; '.aoe2record' is added automatically).
 python -m aoe2_analyzer analyze path/to/replay.aoe2record --rename
 
-# Identify many replays at once (who-vs-who + a suggested filename to rename to).
-python -m aoe2_analyzer id *.aoe2record
-#   rec.aoe2record: soad vs PromiDE  [VER 9.4, 35:07]  -> soad-vs-PromiDE-35m.aoe2record
+# Fast scan of a save FOLDER (header only) — who's in each game, newest first.
+# Great for finding a recent game without analysing every file.
+python -m aoe2_analyzer scan ~/Games/.../SaveGame/
+
+# Identify replays (full parse) and print a copy-paste mv line per file...
+python -m aoe2_analyzer id ~/Games/.../SaveGame/
+#   # rec.aoe2record: soad vs PromiDE  [VER 9.4, 35:07]  -> soad-vs-PromiDE-35m.aoe2record
+#   mv 'rec.aoe2record' soad-vs-PromiDE-35m.aoe2record
+
+# ...or rename them all in place (collision-safe: adds -2/-3 on clashes).
+python -m aoe2_analyzer id ~/Games/.../SaveGame/ --rename
 ```
+
+`scan` and `id` accept folders, globs, or individual files. `scan` is header-only
+(fast, may list lobby/AI names); `id` does a full parse for clean, accurate names.
 
 The `analyze` report bundles everything below. The same views are also available
 as focused sub-commands (handy for piping or one player):

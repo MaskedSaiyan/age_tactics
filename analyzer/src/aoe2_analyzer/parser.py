@@ -346,6 +346,24 @@ def _build_age_timings(clicks: dict[str, float]) -> list[AgeTiming]:
     return timings
 
 
+def quick_identify(path: str) -> dict:
+    """Fast 'who's in this game' from the header only — no command-stream walk.
+
+    Returns {"version": str|None, "names": list[str]}. ~10x faster than a full
+    parse, so it scales to scanning a whole folder. The names come from a loose
+    header scrape, so they may include lobby/AI names that never acted — good
+    enough to FIND a game, but use a full parse (id) for clean renaming.
+    """
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+    except FileNotFoundError as exc:
+        raise ReplayParseError(f"file not found: {path}") from exc
+    if len(data) < 8:
+        raise ReplayParseError("file too small to be an .aoe2record")
+    return {"version": _read_version(data), "names": _scrape_player_names(data)}
+
+
 def _read_version(data: bytes) -> Optional[str]:
     """Decompress the header and read the leading version string (e.g. 'VER 9.4')."""
     try:
