@@ -80,6 +80,7 @@ def _format_player(p: PlayerSummary) -> list[str]:
 
     out.extend(_format_pace(p))
     out.extend(_format_age_breakdown(p))
+    out.extend(_format_tc_idle(p))
 
     out.append("  Activity (command stream):")
     out.append(f"    Actions issued:   {_na(p.action_count)}")
@@ -151,6 +152,30 @@ def _format_age_breakdown(p: PlayerSummary) -> list[str]:
         )
     v, m, b = _counts_up_to(p.build_order, None)
     out.append(f"    Game total:        {v} villagers, {m} military, {b} buildings")
+    return out
+
+
+def _format_tc_idle(p: PlayerSummary, top_gaps: int = 5) -> list[str]:
+    """Show the estimated idle time of the player's first Town Center."""
+    if p.main_tc_id is None or p.total_idle_tc_seconds is None:
+        return []
+    out = [f"  Main Town Center (obj {p.main_tc_id}) — idle estimate:"]
+    out.append(f"    Villagers trained here: {p.main_tc_villagers}")
+    out.append(
+        f"    Production window:      {_fmt_time(p.main_tc_first_seconds)}"
+        f" → {_fmt_time(p.main_tc_last_seconds)}"
+    )
+    lost_vils = p.total_idle_tc_seconds / 25.0
+    out.append(
+        f"    Idle (not training):    {_fmt_time(p.total_idle_tc_seconds)}"
+        f"  (≈ {lost_vils:.1f} villagers' worth)"
+    )
+    if p.main_tc_idle_gaps:
+        out.append(f"    Longest idle gaps (top {min(top_gaps, len(p.main_tc_idle_gaps))}):")
+        for gap in p.main_tc_idle_gaps[:top_gaps]:
+            out.append(
+                f"      at {_fmt_time(gap.start)}  idle {_fmt_time(gap.seconds)}"
+            )
     return out
 
 

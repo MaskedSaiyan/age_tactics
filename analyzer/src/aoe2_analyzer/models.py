@@ -49,6 +49,19 @@ class BuildOrderEvent:
 
 
 @dataclass
+class IdleGap:
+    """A stretch where the main Town Center produced nothing.
+
+    `start` and `seconds` are game-time seconds. Estimated by modelling the TC
+    production line (training a villager occupies it ~25s; age-ups block it for
+    the research duration).
+    """
+
+    start: float
+    seconds: float
+
+
+@dataclass
 class EconomySnapshot:
     """A point-in-time snapshot of a player's economy."""
 
@@ -84,6 +97,13 @@ class PlayerSummary:
     total_idle_tc_seconds: Optional[float] = None
     total_housed_seconds: Optional[float] = None
     military_units_produced: Optional[int] = None
+
+    # Main Town Center (the first one) idle estimate.
+    main_tc_id: Optional[int] = None
+    main_tc_villagers: Optional[int] = None
+    main_tc_first_seconds: Optional[float] = None  # first villager queued from it
+    main_tc_last_seconds: Optional[float] = None  # last villager queued from it
+    main_tc_idle_gaps: list[IdleGap] = field(default_factory=list)
 
     # Real, robustly-extractable activity stats from the command stream.
     # (These come from counting operations in the body — see parser.py.)

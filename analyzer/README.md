@@ -21,12 +21,20 @@ yet, so those still show `unknown`.
   (`MAKE` + `DE_QUEUE`) and building placed (`BUILD`), with age markers — i.e. Villager #1..N,
   the military, and buildings up to each age.
 - **Production by age**: cumulative villagers / military / buildings at each age click.
+- **Main Town Center idle time** (estimate): we identify the first TC (the object the
+  first villager was trained from) and model its production line — training a villager
+  occupies it ~25s, age-ups block it for the research time. Any gap is idle, reported as a
+  total, "≈ N villagers' worth", and the longest gaps with timestamps.
 - **Player names** (scraped from the header string table, slot order).
 
 ### 🚧 Roadmap (needs command-stream simulation / full header parse)
 - **Civilizations** per player and **map**.
-- **Resource distribution over time** and **villagers actually alive** (vs queued).
-- **Town Center idle time** — the silent game-loser.
+- **Resources are NOT in the replay** — food/wood/gold/stone are simulated state, not
+  recorded (the postgame block has none either). A resource-over-time view would require a
+  full economy simulation (villager assignments × gather rates) and would be an estimate.
+- **Per-villager task tracking**: `ORDER` commands do record which villager (object id) was
+  sent where (target id + map x/y), so individual villagers are followable — but the replay
+  carries no resource *type* for the target, so "wood vs gold vs food" can only be inferred.
 - **Farm count** and **number of Town Centers** (catch the Goth "too many TCs" trap).
 - **Housed time** — how long you spent population-blocked.
 

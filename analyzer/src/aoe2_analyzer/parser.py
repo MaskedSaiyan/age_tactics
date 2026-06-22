@@ -36,8 +36,8 @@ import struct
 import zlib
 from typing import Optional
 
-from .gamedata import building_name, unit_name
-from .models import AgeTiming, BuildOrderEvent, PlayerSummary, ReplaySummary
+from .gamedata import VILLAGER_ID, building_name, unit_name
+from .models import AgeTiming, BuildOrderEvent, IdleGap, PlayerSummary, ReplaySummary
 
 # Age advance technologies, keyed by mgz RESEARCH technology_id.
 AGE_TECHS = {101: "Feudal", 102: "Castle", 103: "Imperial"}
@@ -48,6 +48,12 @@ AGE_RESEARCH_SECONDS = {"Feudal": 130.0, "Castle": 160.0, "Imperial": 190.0}
 
 # Order ages should appear in, regardless of research order.
 _AGE_ORDER = ["Feudal", "Castle", "Imperial"]
+
+# Base time to train one villager (seconds), no civ/tech modifiers applied.
+VILLAGER_TRAIN_SECONDS = 25.0
+
+# Idle gaps shorter than this are normal click latency, not real idle TC time.
+_MIN_IDLE_GAP_SECONDS = 3.0
 
 
 class ReplayParseError(Exception):
@@ -110,6 +116,9 @@ def _parse_real(path: str) -> ReplaySummary:
     age_clicks: dict[int, dict[str, float]] = {}
     # player_id -> chronological build-order events
     events: dict[int, list[BuildOrderEvent]] = {}
+    # player_id -> list of (time, object_ids, kind, value) occupying a building.
+    # kind "vil": value=count (train ~25s each); "age": value=research seconds.
+    tc_events: dict[int, list[tuple]] = {}
 
     def add_event(pid: int, t_sec: float, kind: str, name: str, count: int = 1) -> None:
         events.setdefault(pid, []).append(BuildOrderEvent(t_sec, kind, name, count))
@@ -145,8 +154,12 @@ def _parse_real(path: str) -> ReplaySummary:
                     # MAKE = single unit (AI); DE_QUEUE = batch with `amount` (human).
                     amount = payload.get("amount")
                     count = amount if isinstance(amount, int) and amount > 0 else 1
+                    unit_id = payload.get("unit_id")
                     units[pid] = units.get(pid, 0) + count
-                    add_event(pid, t_sec, "unit", unit_name(payload.get("unit_id")), count)
+                    add_event(pid, t_sec, "unit", unit_name(unit_id), count)
+                    if unit_id == VILLAGER_ID:
+                        objs = payload.get("object_ids") or []
+                        tc_events.setdefault(pid, []).append((t_sec, objs, "vil", count))
                 elif name == "RESEARCH":
                     tech = payload.get("technology_id")
                     age = AGE_TECHS.get(tech)
@@ -154,6 +167,10 @@ def _parse_real(path: str) -> ReplaySummary:
                         # First click wins (ignore any duplicate/cancelled re-issues).
                         age_clicks.setdefault(pid, {}).setdefault(age, t_sec)
                         add_event(pid, t_sec, "age", f"{age} Age")
+                        objs = payload.get("object_ids") or []
+                        tc_events.setdefault(pid, []).append(
+                            (t_sec, objs, "age", AGE_RESEARCH_SECONDS[age])
+                        )
 
     duration_ms = postgame_world_time or total_ms
     duration_seconds = duration_ms / 1000.0 if duration_ms else None
@@ -163,6 +180,7 @@ def _parse_real(path: str) -> ReplaySummary:
     for idx, pid in enumerate(sorted(actions)):
         # Best-effort name: header string table, in slot order. Falls back to id.
         name = names[idx] if idx < len(names) else f"Player {pid}"
+        tc = _estimate_main_tc_idle(tc_events.get(pid, []))
         players.append(
             PlayerSummary(
                 player_id=pid,
@@ -174,6 +192,12 @@ def _parse_real(path: str) -> ReplaySummary:
                 build_count=builds.get(pid),
                 make_count=units.get(pid),  # total units queued (MAKE + DE_QUEUE)
                 military_units_produced=units.get(pid),  # queued units as a proxy
+                main_tc_id=tc["tc_id"],
+                main_tc_villagers=tc["villagers"],
+                main_tc_first_seconds=tc["first"],
+                main_tc_last_seconds=tc["last"],
+                total_idle_tc_seconds=tc["idle_total"],
+                main_tc_idle_gaps=tc["gaps"],
             )
         )
 
@@ -195,6 +219,60 @@ def _parse_real(path: str) -> ReplaySummary:
             "not extracted yet.",
         ],
     )
+
+
+def _estimate_main_tc_idle(occupations: list[tuple]) -> dict:
+    """Estimate idle time of the player's FIRST Town Center.
+
+    `occupations` is a list of (time, object_ids, kind, value) where kind is
+    "vil" (value=count, ~25s each) or "age" (value=research seconds). We pick
+    the main TC as the object the first villager was trained from, then model
+    its production line: any gap with nothing training/researching is idle.
+
+    Idle is only counted between the first and last villager trained there (we
+    don't penalise a TC you deliberately stopped using late-game).
+    """
+    empty = {
+        "tc_id": None, "villagers": None, "first": None,
+        "last": None, "idle_total": None, "gaps": [],
+    }
+    vil_events = [o for o in occupations if o[2] == "vil" and o[1]]
+    if not vil_events:
+        return empty
+
+    main_tc = vil_events[0][1][0]
+    # All occupations that involve the main TC, in chronological order.
+    occ = sorted((o for o in occupations if main_tc in (o[1] or [])), key=lambda o: o[0])
+
+    busy_until: Optional[float] = None
+    idle_total = 0.0
+    gaps: list[IdleGap] = []
+    villagers = 0
+    first = last = None
+
+    for t, _objs, kind, value in occ:
+        if busy_until is not None and t > busy_until:
+            gap = t - busy_until
+            if gap >= _MIN_IDLE_GAP_SECONDS:
+                gaps.append(IdleGap(start=busy_until, seconds=gap))
+                idle_total += gap
+        if busy_until is None or t > busy_until:
+            busy_until = t
+        if kind == "vil":
+            count = int(value)
+            villagers += count
+            if first is None:
+                first = t
+            last = t
+            busy_until += VILLAGER_TRAIN_SECONDS * count
+        else:  # age research occupies the TC for its full duration
+            busy_until += float(value)
+
+    gaps.sort(key=lambda g: g.seconds, reverse=True)
+    return {
+        "tc_id": main_tc, "villagers": villagers, "first": first,
+        "last": last, "idle_total": idle_total, "gaps": gaps,
+    }
 
 
 def _build_age_timings(clicks: dict[str, float]) -> list[AgeTiming]:
