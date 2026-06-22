@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import shlex
+import time
 
 from .models import AgeTiming, BuildOrderEvent, PlayerSummary, ReplaySummary
 from .resource import infer_resource
@@ -437,12 +438,37 @@ def suggested_name(names: list[str], duration_seconds: float | None = None) -> s
     return slug or "unknown"
 
 
-def rename_command(path: str, summary: ReplaySummary) -> str:
-    """A ready-to-paste 'mv <path> <dir>/<suggested>' line for quick renaming."""
-    suggested = suggested_name(
-        [p.name for p in summary.players], summary.game_duration_seconds
-    ) + ".aoe2record"
-    target = os.path.join(os.path.dirname(path), suggested)
+def dated_filename(
+    path: str, summary: ReplaySummary, mtime: float | None = None
+) -> str:
+    """Date-first filename: 'YYYY-MM-DD-HHMM_soad-vs-...-56m.aoe2record'.
+
+    The date comes from the original AoE2 filename's '@YYYY.MM.DD HHMMSS' tag,
+    falling back to the file's modification time. Date-first keeps games sorted
+    chronologically and avoids the collisions a matchup-only name causes.
+    """
+    names = [p.name for p in summary.players]
+    slug = "-vs-".join(n for n in names if n) or "unknown"
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", slug).strip("_")
+
+    base = os.path.basename(path)
+    m = re.search(r"@(\d{4})\.(\d{2})\.(\d{2}) (\d{2})(\d{2})", base)
+    if m:
+        date = f"{m.group(1)}-{m.group(2)}-{m.group(3)}-{m.group(4)}{m.group(5)}"
+    elif mtime:
+        date = time.strftime("%Y-%m-%d-%H%M", time.localtime(mtime))
+    else:
+        date = ""
+
+    dur = summary.game_duration_seconds
+    dur_part = f"{int(dur // 60)}m" if dur else ""
+    parts = [p for p in (date, slug, dur_part) if p]
+    return "_".join(parts) + ".aoe2record"
+
+
+def rename_command(path: str, summary: ReplaySummary, mtime: float | None = None) -> str:
+    """A ready-to-paste 'mv <path> <dir>/<dated name>' line for quick renaming."""
+    target = os.path.join(os.path.dirname(path), dated_filename(path, summary, mtime))
     return f"mv {shlex.quote(path)} {shlex.quote(target)}"
 
 

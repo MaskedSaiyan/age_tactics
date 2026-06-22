@@ -18,6 +18,7 @@ from typing import Optional, Sequence
 from . import __version__
 from .parser import ReplayParseError, parse_replay, quick_identify
 from .report import (
+    dated_filename,
     find_player,
     format_assignments,
     format_compare,
@@ -350,13 +351,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 print(f"{replay}: error: {exc}", file=sys.stderr)
                 exit_code = 1
                 continue
+            mtime = os.path.getmtime(replay) if os.path.exists(replay) else None
             if not args.rename:
                 print(f"# {format_identity(replay, summary)}")
-                print(rename_command(replay, summary))
+                print(rename_command(replay, summary, mtime))
                 continue
-            target_name = suggested_name(
-                [p.name for p in summary.players], summary.game_duration_seconds
-            ) + ".aoe2record"
+            target_name = dated_filename(replay, summary, mtime)
             target = os.path.join(os.path.dirname(replay), target_name)
             if os.path.abspath(target) == os.path.abspath(replay):
                 print(f"{os.path.basename(replay)}: already named — skipped")
