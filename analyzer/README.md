@@ -44,12 +44,18 @@ yet, so those still show `unknown`.
 ## Usage
 
 ```bash
-# Headline summary: age timings, pace, production-by-age, TC idle, activity.
+# FULL report, all sections (overview + build order + villager assignments).
+# This is the one to run — you don't have to remember the others.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record
 
-# Same, plus the full numbered build-order timeline.
-python -m aoe2_analyzer analyze path/to/replay.aoe2record --build-order
+# Just the overview section (timings, pace, TC idle, activity).
+python -m aoe2_analyzer analyze path/to/replay.aoe2record --summary-only
+```
 
+The `analyze` report bundles everything below. The same views are also available
+as focused sub-commands (handy for piping or one player):
+
+```bash
 # Number villagers by appearance and infer each one's first resource.
 python -m aoe2_analyzer assignments path/to/replay.aoe2record --player 1
 

@@ -362,13 +362,41 @@ def format_assignments(summary: ReplaySummary, player_id: int) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _human_players(summary: ReplaySummary) -> list[PlayerSummary]:
+    """Players who clicked an age-up (i.e. not AI). Falls back to all players."""
+    return [p for p in summary.players if p.age_timings] or summary.players
+
+
+def format_report(summary: ReplaySummary) -> str:
+    """One full, sectioned report: overview + per-player build order + assignments.
+
+    So you never have to remember the sub-commands — everything is here.
+    """
+    parts: list[str] = []
+    parts.append("#" * 60)
+    parts.append("#  SECTION 1 — OVERVIEW (timings, pace, TC idle, activity)")
+    parts.append("#" * 60)
+    parts.append(format_summary(summary))
+
+    for p in _human_players(summary):
+        parts.append("")
+        parts.append("#" * 60)
+        parts.append(f"#  SECTION 2 — BUILD ORDER — {p.name}")
+        parts.append("#" * 60)
+        parts.append(format_build_order(p))
+
+        parts.append("")
+        parts.append("#" * 60)
+        parts.append(f"#  SECTION 3 — VILLAGER ASSIGNMENTS — {p.name}")
+        parts.append("#" * 60)
+        parts.append(format_assignments(summary, p.player_id))
+
+    return "\n".join(parts)
+
+
+def print_report(summary: ReplaySummary) -> None:
+    print(format_report(summary), end="")
+
+
 def print_summary(summary: ReplaySummary) -> None:
     print(format_summary(summary), end="")
-
-
-def print_build_orders(summary: ReplaySummary) -> None:
-    """Print the full numbered build order for each human (age-clicking) player."""
-    players = [p for p in summary.players if p.age_timings] or summary.players
-    for p in players:
-        print()
-        print(format_build_order(p), end="")

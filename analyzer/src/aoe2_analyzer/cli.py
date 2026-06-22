@@ -18,7 +18,7 @@ from .report import (
     format_assignments,
     format_unit_log,
     format_villager_list,
-    print_build_orders,
+    print_report,
     print_summary,
 )
 
@@ -34,14 +34,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     analyze = subparsers.add_parser(
         "analyze",
-        help="Parse a replay and print an age-progression summary.",
+        help="Full sectioned report: overview + build order + assignments.",
     )
     analyze.add_argument("replay", help="Path to a .aoe2record file.")
     analyze.add_argument(
-        "-b",
-        "--build-order",
+        "-s",
+        "--summary-only",
         action="store_true",
-        help="Also print the full numbered build-order timeline.",
+        help="Print only the overview section (no build order / assignments).",
     )
 
     villagers = subparsers.add_parser(
@@ -90,9 +90,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         summary = _load(args.replay)
         if summary is None:
             return 1
-        print_summary(summary)
-        if args.build_order:
-            print_build_orders(summary)
+        if args.summary_only:
+            print_summary(summary)
+        else:
+            print_report(summary)
         return 0
 
     if args.command == "villagers":
