@@ -1,79 +1,92 @@
-# Goths — Fast Castle (practical)
+# Goths — Fast Castle (into 3-TC boom)
 
-**Target:** reach Castle Age fast **but not too skinny.** A Goth Fast Castle is not a 1-TC
-all-in — it's the setup for a 3-TC boom into Imperial. If you arrive in Castle on fumes, the
-boom stalls and you've wasted the civ.
+### Build Guide · *the boom setup*
 
-## The "not too skinny" rule
+When you don't want to fight in Feudal, you skip it — straight to Castle and the 3-TC boom that
+feeds the Goth late game. The one rule: **arrive comfortable, not skinny.** A Fast Castle on
+fumes can't drop 2 TCs and keep them busy, and an idle TC is the quiet way Goths lose.
 
-You *can* hit Castle very fast with a minimal eco. The problem is the **3-TC boom afterward**:
+---
 
-- If you arrive with only **7-8 farms** and a thin wood line, you can't afford to plop 2 extra
-  TCs *and* keep them busy *and* keep adding farms.
-- The TCs sit there half-idle because you have no food/wood buffer to queue villagers
-  continuously, and idle TC time is the #1 thing that quietly loses you the game.
-- A slightly slower Castle time with **a healthy farm count** booms far harder than a blazing
-  Castle time with a starved eco.
+## Build Overview
 
-So: aim for a **comfortable** Fast Castle. Get there with enough farms and wood that the moment
-you click up, you can drop 2 more TCs and immediately fill all three with continuous villager
-production.
+| | |
+|---|---|
+| **Civ** | Goths |
+| **Map** | Closed / pocket position / walled maps |
+| **Difficulty** | ★★☆ Medium |
+| **Goal** | Reach Castle with a healthy eco, drop TC #2 + #3, boom to ~100 vils |
+| **Castle target** | ~16–17 min with **~8–10 farms already down** |
+| **Win condition** | Out-boom to Imperial and the infantry faucet (see [`../team-imperial/`](../team-imperial/)) |
 
-## Villager distribution (rough target through Castle Age)
+> Numbers = population *after* that villager pops. Wall early — Goths are **fragile** here.
 
-These are *checkpoints*, not gospel. Adjust to your map and what your pocket needs.
+---
 
-| Resource | Dark/Feudal focus | Early Castle target |
-|----------|-------------------|---------------------|
-| Food (sheep → boar → deer → farms) | most of your eco | ~50-55% |
-| Wood (lumber camp) | enough for farms + 2 TCs | ~25-30% |
-| Gold | minimal until Castle | ~10% |
-| Stone | a little for the extra TCs | ~10% |
+## Pros & Cons
 
-The big idea: **food and wood carry the boom.** You need wood for farms *and* for the two extra
-Town Centers, and food to keep all three TCs producing.
+**✅ Pros**
+- Skips the age Goths are weakest in. Straight to the boom you actually want.
+- Simple, low-micro — it's an economy build, not a fight.
+- Sets up the strongest Goth late game: 3 TCs → Imperial → Perfusion.
 
-## Checkpoints
+**❌ Cons**
+- Zero early pressure — a greedy enemy gets a free fast Castle too.
+- **Fragile in the transition.** No walls = you die to any feudal aggression.
+- Easy to arrive *too skinny* and stall the boom (the #1 mistake).
 
-### ✅ Before clicking Feudal
-- ~**27-30 villagers** (slightly heavier than a pure FC if you want a comfortable boom).
-- All food sources being used: sheep eaten in order, **boar lured**, **deer taken** with TC nearby.
-- Lumber camp up, a few villagers on wood.
-- Houses ahead of pop — **never get housed** (track housed time; it's pure lost villager production).
-- Loom in if you're getting scouted/pressured.
+---
 
-### ✅ Before clicking Castle
-- ~**8-10 farms** seeded (this is the key "not too skinny" number).
-- Wood line healthy enough to afford **2 more Town Centers + ongoing farms**.
-- Some gold trickling (a few on gold) so you can start army/upgrades soon after.
-- Walls or a wall plan in place — Goths are *fragile* in this window.
+## Build Order
 
-### ✅ Immediately after reaching Castle
-- **Drop TC #2 and TC #3** as soon as you can afford them (stone + wood ready).
-- All **3 TCs producing villagers continuously** — this is the whole point.
-- Start a **Blacksmith** and a **Barracks**; begin infantry armor/attack upgrades.
-- Keep adding farms so food never gaps. Don't let a TC sit idle waiting for food.
+### ☀️ Dark Age — *to Feudal ~10:00*
 
-### ✅ At 50 villagers
-- 3 TCs still pumping, **zero meaningful idle TC time**.
-- Farms scaling up (you should be in the high teens / low 20s of farms heading here).
-- Blacksmith upgrades started (infantry armor first vs archer civs).
-- A barracks or two down so you can react to pressure with cheap Militia/Spears.
+**`3` Sheep** — start on sheep, **queue villagers non-stop.**
 
-### ✅ At 80 villagers
-- Start **shifting villagers off food into gold/wood** as you approach your eco cap.
-- This is where you begin the **slow-down of villager production** (see team-imperial plan).
-- Multiple barracks going down in preparation for Perfusion.
-- You should be close to the "stop booming, start massing" pivot.
+**`4–5` Sheep** — a **House** each, then food. *(don't get housed)*
 
-### ✅ Before clicking Imperial
-- **~95-110 villagers** (see [`../team-imperial/`](../team-imperial/) — don't overshoot).
-- **Slow or stop villager production** so the food/gold goes into the Imperial click + army.
-- Several barracks already built (Perfusion + Elite Huskarl are coming).
-- A military buffer so you're not naked during the ~2+ minute Imperial transition.
+**`6–7` Wood** — **Lumber Camp**, start the wood you'll need for farms + 2 TCs.
+
+**`8` Boar** — **lure the boar**, eat under TC.
+
+**`9–11` Food** — sheep / 2nd **boar lure** / **deer** with TC fire nearby.
+
+**`12` Berries** — **Mill** on berries.
+
+**`13–22` Balance** — keep ~60% food, ~30% wood, a couple on gold. **Loom** in if you're being scouted.
+
+> **⏫ ▶ Click Feudal at ~27–30 villagers** (heavier than a fighting build — this is a boom).
+
+### ⚔️ Feudal Age — *to Castle ~16–17 min*
+
+- **Seed 8–10 Farms** before you click Castle — this is the "not too skinny" number.
+- Keep the **wood line healthy** (enough for 2 TCs + ongoing farms).
+- Trickle **a few on gold** so army/upgrades come online right after Castle.
+- **Wall.** A wall or a wall plan is non-negotiable through this window.
+
+> **🏰 ▶ Click Castle with the eco ready to plant 2 more TCs.**
+
+### 🏰 Castle Age — *the boom*
+
+**Drop `TC #2` and `TC #3`** the moment stone + wood allow. **All three produce villagers, always.**
+
+**`Blacksmith` + `Barracks`** down; start infantry armor/attack upgrades.
+
+**Keep adding Farms** so food never gaps — a TC waiting on food is wasted boom.
+
+**Checkpoints:** ~50 vils with *zero* idle TC → ~80 vils, start shifting food → gold/wood → begin
+slowing villager production as you approach **~95–110** and head to Imperial.
+
+---
+
+## Tips
+
+- **Comfortable beats fast.** 8–10 farms before Castle out-booms a blazing-but-starved Castle time.
+- **3 Town Centers, no more.** Extra TCs eat wood/stone and arrive you late and broke.
+- **Never let a TC sit idle** — that's the whole reason to arrive with eco, not on fumes.
+- **Wall first, boom second.** You have no army during the transition; the wall is your army.
 
 ## TL;DR
 
-Fast Castle for Goths = **comfortable, not skinny**. ~8-10 farms before Castle, drop the 2nd and
-3rd TC immediately, keep all three busy, then transition into barracks and Imperial. The boom
-exists to feed the late game — not to look pretty on the scoreboard.
+**Vils non-stop, all food sources used → ~28 vils to Feudal → 8–10 farms → Castle ~16:30 → drop
+TC #2 & #3 → keep all three busy → ~100 vils → Imperial. Comfortable, walled, never idle.**

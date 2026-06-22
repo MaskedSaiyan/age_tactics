@@ -68,7 +68,7 @@ his 18:32). It works on *your* hands — this is the version to drill until it's
 
 **`16–18` Food/Wood** — Balance to afford Feudal. Around **8:30, queue `3` Militia** from the Barracks.
 
-> ![Feudal](feudal) **▶ Click Feudal at ~18 pop (~9:45).** Your 3 Militia walk out as you age up.
+> **⏫ ▶ Click Feudal at ~18 pop (~9:45).** Your 3 Militia walk out as you age up.
 
 ### ⚔️ Feudal Age — *the rush*
 
@@ -81,6 +81,21 @@ his 18:32). It works on *your* hands — this is the version to drill until it's
 **Build `Blacksmith` → Forging** so your infantry actually bite.
 
 **Keep the Barracks flowing** — feed Militia waves (you did 5-at-once around 14:30). Add **Double-Bit Axe** for wood.
+
+### 🔄 Reading the enemy — *how you flip the script*
+
+This is the part that turns "he pressures me and I suffer" into the opposite. **React to what he builds:**
+
+- **He opens Scouts** (Stable ~10:00 — shura's bread and butter) → add **Spearmen**. Goth Spears
+  are dirt cheap and **hard-counter cavalry** — his raiding Scouts walk into them and *die*. Now
+  he can't touch your eco, while your **MAA keep eating his.** That's the whole flip.
+- **His Archers come** (~16:00) → Archers beat your MAA and Spears. Answer with **Skirmishers**
+  (they shut down archers) **or** just be in **Castle Age** already with the boom rolling.
+- **Your damage core stays MAA** (+ a few of your own Archers if you added a Range). The Spears
+  and Skirms are *defense that lets the MAA keep working* — they're not the killers, the MAA are.
+
+> One-liner: **MAA do the damage, Spears delete his Scouts, Skirms cover his Archers, and you
+> keep aging.** He's used to bullying you with Scouts — make those Scouts the worst unit he owns.
 
 ### 🏰 Decision point (~16–17 min)
 

@@ -1,68 +1,84 @@
-# Goths — Team-game Imperial plan
+# Goths — Team-game Imperial
 
-This is the bread and butter: a stable team game where you boom to a healthy eco, hit Imperial,
-and turn into an infantry faucet that never runs dry.
+### Build Guide · *the win condition*
 
-## Core principle: 3 TC boom, **not** 5 TC greed
+This is the slot you were born to play: a stable team game that reaches Imperial, where you
+become an **infantry faucet that never runs dry.** You don't out-tech anyone — you **out-flow**
+them with the cheapest army in the game at the fastest production in the game.
 
-- **3 Town Centers is the target.** Three TCs give you all the villager production you need to
-  hit ~100 pop and keep food flowing.
-- **5 TC greed loses games.** Extra TCs eat wood/stone, push your villager count too high, and
-  delay Imperial + army. You end up rich, late, and dead.
-- Goths win with **production from barracks**, not from extra TCs. Spend the surplus on barracks,
-  upgrades, and units.
+---
 
-## Villager target
+## Build Overview
 
-- **95-110 villagers before clicking Imperial.** That's the sweet spot.
-- Below ~90 and you can't sustain the army; above ~115 and you've over-boomed and arrived late.
-- Once you hit your target, **stop or heavily slow villager production** — see below.
+| | |
+|---|---|
+| **Civ** | Goths |
+| **Map** | Team games (Arena, BF, hybrid) — anything that reaches Imperial |
+| **Difficulty** | ★★☆ Medium (eco discipline > micro) |
+| **Goal** | 3 TCs → ~100 vils → Imperial with many barracks → endless Huskarls/Champs |
+| **Villager target** | **95–110, then STOP** |
+| **Win condition** | Perfusion + slung resources = a wave the enemy can't clear |
 
-## Slow down villager production into Imperial
+> This is a phase plan, not a Dark-Age order — get to Castle via [`../fast-castle/`](../fast-castle/) first.
 
-- The Imperial click is expensive (1000F / 800G) and takes a while. You want that food and gold
-  going into **the click + the first wave of army + upgrades**, not into villager #112.
-- **Stop or slow TC production** as you approach your villager target. Idle TCs for a bit here is
-  *fine* — you're intentionally redirecting resources.
-- Re-add a few villagers later if you're floating resources, but the boom is essentially done.
+---
 
-## Build barracks during the Imperial transition
+## Pros & Cons
 
-- The Imperial transition is ~2+ minutes of doing "nothing" — use it to **lay down barracks.**
-- You want **multiple barracks** (think 4-8+ as the game goes long) so that when **Perfusion**
-  lands, all of them spit out Huskarls/Champions at high speed.
-- Also drop a 2nd Blacksmith-area / keep upgrade queues hot during the transition.
+**✅ Pros**
+- The strongest late-game team identity in the game once Perfusion lands.
+- Cheap units + fast production = you replace losses faster than anyone can kill them.
+- **+10 team pop** helps your whole team field a bigger army.
 
-## Priority upgrades (roughly in order)
+**❌ Cons**
+- You **need** the game to reach Imperial alive — a fast loss is a Goth loss.
+- Over-booming (5 TCs) arrives you late and broke with no army — the classic trap.
+- Useless without resources flowing — you're a sink, so the team has to feed you.
 
-1. **Conscription** — faster unit production from buildings. Stacks with Perfusion; huge for flow.
-2. **Perfusion** (Goth UT) — the big one. Barracks produce *much* faster. Build barracks first so
-   it has something to act on.
-3. **Elite Huskarl** — your anti-archer/anti-building workhorse becomes much stronger.
-4. **Infantry armor/attack upgrades** (Blacksmith) — Plate Mail Armor, Blast Furnace, etc. Pick
-   armor first against archer/skirm-heavy enemies, attack first when you're already trading well.
+---
 
-Also don't forget the infantry line upgrades themselves (Champion) and **Squires** (faster infantry).
+## The Plan
 
-## When allies should sling resources
+### 🏰 Castle Age — *boom to the cap*
 
-You are the **resource sink** that converts the team's economy into army. Slinging to Goths is
-often the correct team play late.
+**`3` Town Centers — and STOP.** Three TCs give you everything; a 4th/5th just eats wood + stone,
+over-villagers you, and delays Imperial. Spend the surplus on **barracks, upgrades, army.**
 
-Allies should sling to you when:
+**Boom to ~95–110 villagers.** Below ~90 you can't sustain the army; above ~115 you've over-boomed
+and you'll arrive late.
 
-- **You've hit Imperial and have Perfusion + barracks up**, but are food/gold light. Slung
-  resources convert directly into army flow — the highest-value use on the team.
-- **You're holding the front / trash war** and just need bodies. Cheap Goth units + slung wood
-  and food = an endless trash wall the enemy can't break.
-- A pocket ally is **maxed on villagers and floating resources** — that float is worthless sitting
-  in their bank; in your barracks it's another wave of Huskarls.
+**Lay down barracks early and often** — you want **4–8+** by late Imperial so Perfusion has fuel.
 
-You should sling **out** when: you're walled and safe but an ally is about to break a front and
-just needs one more push. Read the map — the team's resources should flow to whoever's army does
-the most work, and in the late game that's usually the Goth.
+### ⏫ Imperial transition — *the dead time is build time*
+
+**Slow / stop villager production** as you near your vil target. The Imperial click (1000F/800G) is
+expensive and slow — you want that food and gold going into **the click + first army wave + upgrades**,
+not villager #112. **A bit of idle TC here is fine — it's intentional.**
+
+**Use the ~2-minute transition to slam down barracks** and keep upgrade queues hot.
+
+### 👑 Imperial — *upgrade priority (in order)*
+
+1. **`Conscription`** — faster production from buildings; stacks with Perfusion.
+2. **`Perfusion`** (Goth UT) — *the* spike. Barracks pump infantry much faster. Build barracks first.
+3. **`Elite Huskarl`** — your anti-archer / anti-building workhorse gets scary.
+4. **Blacksmith armor/attack** — Plate Mail Armor first vs archers/skirms; attack first when already trading well.
+
+Don't forget **Champion** and **Squires** (faster infantry).
+
+---
+
+## Tips
+
+- **You are the resource sink.** Allies maxed on vils and floating resources should **sling to you** —
+  that float is worthless in their bank, it's another Huskarl wave in your barracks.
+- Sling **out** only when you're walled-safe and an ally needs one push to break a front.
+- **Huskarls vs archers/buildings/trash; beware siege** (onagers, scorpions) and heavy melee — don't
+  walk them into onager pancakes.
+- The Goth failure mode isn't too few vils — it's **"105 pop in Castle with 4 TCs and no army."**
+  Get to Imperial, then never stop pumping.
 
 ## TL;DR
 
-3 TCs, ~100 vils, stop booming, slam barracks during the Imperial transition, rush
-Conscription → Perfusion → Elite Huskarl → armor/attack, and let your team feed the faucet.
+**3 TCs → ~100 vils → stop booming → slam barracks in the transition → Conscription → Perfusion →
+Elite Huskarl → armor/attack → let the team feed the faucet and drown them in cheap bodies.**
