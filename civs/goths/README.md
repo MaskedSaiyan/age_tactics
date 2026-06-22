@@ -75,4 +75,4 @@ It's tempting to slam down 4-5 Town Centers and boom forever. **Don't.** Goths' 
 The Goth failure mode isn't "too few villagers" — it's "I'm 105 pop in Castle Age with 4 TCs
 and no military while the enemy hits Imperial." Get to Imperial, then let cheap units do the work.
 
-See: [`fast-castle/`](fast-castle/), [`team-imperial/`](team-imperial/), [`feudal-rush/`](feudal-rush/).
+See: [`maa-rush/`](maa-rush/) ◄ *the go-to, step-by-step*, [`feudal-rush/`](feudal-rush/), [`fast-castle/`](fast-castle/), [`team-imperial/`](team-imperial/).
