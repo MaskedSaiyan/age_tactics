@@ -51,6 +51,12 @@ python -m aoe2_analyzer analyze path/to/replay.aoe2record
 # Just the overview section (timings, pace, TC idle, activity).
 python -m aoe2_analyzer analyze path/to/replay.aoe2record --summary-only
 
+# Analyse only YOUR player (by name substring or id), and save it to a file.
+python -m aoe2_analyzer analyze game.aoe2record --player soad --out soad-game.txt
+
+# Compare one player's key metrics across several games (why some go better).
+python -m aoe2_analyzer compare game1.aoe2record game2.aoe2record --player soad
+
 # Analyse, then interactively rename the file (Enter = use suggestion,
 # n = keep, or type your own name; '.aoe2record' is added automatically).
 python -m aoe2_analyzer analyze path/to/replay.aoe2record --rename

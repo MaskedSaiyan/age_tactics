@@ -9,9 +9,9 @@ import os
 
 import pytest
 
-from aoe2_analyzer.models import AgeTiming, ReplaySummary
+from aoe2_analyzer.models import AgeTiming, PlayerSummary, ReplaySummary
 from aoe2_analyzer.parser import ReplayParseError, parse_replay
-from aoe2_analyzer.report import matchup, suggested_name
+from aoe2_analyzer.report import find_player, format_compare, matchup, suggested_name
 from aoe2_analyzer.resource import infer_resource
 
 SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "rec.aoe2record")
@@ -86,6 +86,31 @@ def test_matchup_and_suggested_name():
     assert suggested_name(["soad", "PromiDE"], 2107.0) == "soad-vs-PromiDE-35m"
     # Unsafe characters become underscores.
     assert "/" not in suggested_name(["a/b", "c d"], None)
+
+
+def test_find_player_by_name_or_id():
+    s = ReplaySummary(
+        source_file="x",
+        players=[
+            PlayerSummary(player_id=1, name="soad", civ="unknown"),
+            PlayerSummary(player_id=2, name="PromiDE", civ="unknown"),
+        ],
+    )
+    assert find_player(s, "soad").player_id == 1
+    assert find_player(s, "SOAD").player_id == 1  # case-insensitive
+    assert find_player(s, "promi").player_id == 2  # substring
+    assert find_player(s, "2").player_id == 2  # numeric id
+    assert find_player(s, "nobody") is None
+
+
+def test_format_compare_smoke():
+    p = PlayerSummary(
+        player_id=1, name="soad", civ="unknown",
+        age_timings=[AgeTiming(age="Feudal", click_time=475.0, arrival_time=605.0)],
+    )
+    out = format_compare([("g1.aoe2record", p), ("g2.aoe2record", p)])
+    assert "G1" in out and "G2" in out
+    assert "Feudal click" in out and "07:55" in out
 
 
 def test_infer_resource_by_proximity():

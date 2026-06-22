@@ -40,8 +40,14 @@ def _na(value: object) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def format_summary(summary: ReplaySummary) -> str:
-    """Return the human-readable headline summary for a ReplaySummary."""
+def format_summary(
+    summary: ReplaySummary, players: list[PlayerSummary] | None = None
+) -> str:
+    """Return the human-readable headline summary for a ReplaySummary.
+
+    `players` restricts which players are shown (default: all).
+    """
+    shown = summary.players if players is None else players
     lines: list[str] = []
     lines.append("=" * 60)
     lines.append("AoE2 DE Replay Summary")
@@ -52,7 +58,7 @@ def format_summary(summary: ReplaySummary) -> str:
     lines.append(f"Duration: {_fmt_time(summary.game_duration_seconds)}")
     lines.append("")
 
-    for p in summary.players:
+    for p in shown:
         lines.extend(_format_player(p))
         lines.append("")
 
@@ -371,18 +377,35 @@ def _human_players(summary: ReplaySummary) -> list[PlayerSummary]:
     return [p for p in summary.players if p.age_timings] or summary.players
 
 
-def format_report(summary: ReplaySummary) -> str:
+def find_player(summary: ReplaySummary, query: str) -> PlayerSummary | None:
+    """Resolve a player by numeric id or (case-insensitive) name substring."""
+    q = query.strip()
+    if q.isdigit():
+        pid = int(q)
+        return next((p for p in summary.players if p.player_id == pid), None)
+    ql = q.lower()
+    exact = [p for p in summary.players if p.name.lower() == ql]
+    if exact:
+        return exact[0]
+    sub = [p for p in summary.players if ql in p.name.lower()]
+    return sub[0] if sub else None
+
+
+def format_report(
+    summary: ReplaySummary, players: list[PlayerSummary] | None = None
+) -> str:
     """One full, sectioned report: overview + per-player build order + assignments.
 
-    So you never have to remember the sub-commands — everything is here.
+    `players` restricts the report to specific players (default: humans).
     """
+    deep_dive = players if players is not None else _human_players(summary)
     parts: list[str] = []
     parts.append("#" * 60)
     parts.append("#  SECTION 1 — OVERVIEW (timings, pace, TC idle, activity)")
     parts.append("#" * 60)
-    parts.append(format_summary(summary))
+    parts.append(format_summary(summary, deep_dive))
 
-    for p in _human_players(summary):
+    for p in deep_dive:
         parts.append("")
         parts.append("#" * 60)
         parts.append(f"#  SECTION 2 — BUILD ORDER — {p.name}")
@@ -435,9 +458,75 @@ def format_identity(path: str, summary: ReplaySummary) -> str:
     )
 
 
-def print_report(summary: ReplaySummary) -> None:
-    print(format_report(summary), end="")
+def print_report(
+    summary: ReplaySummary, players: list[PlayerSummary] | None = None
+) -> None:
+    print(format_report(summary, players), end="")
 
 
 def print_summary(summary: ReplaySummary) -> None:
     print(format_summary(summary), end="")
+
+
+# --------------------------------------------------------------------------- #
+# Cross-game comparison
+# --------------------------------------------------------------------------- #
+
+# Metric order for compare tables: (label, function -> formatted str).
+def player_metric_rows(p: PlayerSummary) -> list[tuple[str, str]]:
+    """Key headline metrics for one player, as (label, value) rows."""
+    feudal, castle, imp = p.age("Feudal"), p.age("Castle"), p.age("Imperial")
+
+    def click(a) -> str:
+        return _fmt_time(a.click_time) if a else "--:--"
+
+    def gap(a, b) -> str:
+        if a and b and a.click_time is not None and b.click_time is not None:
+            return _fmt_time(b.click_time - a.click_time)
+        return "--:--"
+
+    vf = _counts_up_to(p.build_order, feudal.click_time if feudal else None)
+    vc = _counts_up_to(p.build_order, castle.click_time if castle else None)
+    total = _counts_up_to(p.build_order, None)
+    idle = _fmt_time(p.total_idle_tc_seconds) if p.total_idle_tc_seconds is not None else "--:--"
+
+    return [
+        ("Feudal click", click(feudal)),
+        ("Castle click", click(castle)),
+        ("Imperial click", click(imp)),
+        ("Feudal→Castle", gap(feudal, castle)),
+        ("Vills by Feudal", str(vf[0])),
+        ("Vills by Castle", str(vc[0])),
+        ("Total villagers", str(total[0])),
+        ("Total military", str(total[1])),
+        ("Main TC idle", idle),
+    ]
+
+
+def format_compare(games: list[tuple[str, PlayerSummary]]) -> str:
+    """Side-by-side table of key metrics across games for one player.
+
+    `games` is a list of (game_label, PlayerSummary).
+    """
+    if not games:
+        return "(no games to compare)\n"
+
+    rows = [player_metric_rows(p) for _, p in games]
+    labels = [lbl for lbl, _ in rows[0]]
+
+    # Column widths: metric label column + one column per game.
+    label_w = max(len(l) for l in labels)
+    headers = [f"G{i+1}" for i in range(len(games))]
+    col_w = max(6, *(len(h) for h in headers))
+
+    out = ["Legend:"]
+    for i, (lbl, _) in enumerate(games):
+        out.append(f"  G{i+1} = {lbl}")
+    out.append("")
+
+    out.append(f"{'metric':<{label_w}}  " + "  ".join(f"{h:>{col_w}}" for h in headers))
+    out.append(f"{'-' * label_w}  " + "  ".join("-" * col_w for _ in headers))
+    for r, label in enumerate(labels):
+        values = [rows[g][r][1] for g in range(len(games))]
+        out.append(f"{label:<{label_w}}  " + "  ".join(f"{v:>{col_w}}" for v in values))
+    return "\n".join(out) + "\n"

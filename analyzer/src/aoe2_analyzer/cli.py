@@ -16,12 +16,14 @@ from typing import Optional, Sequence
 from . import __version__
 from .parser import ReplayParseError, parse_replay
 from .report import (
+    find_player,
     format_assignments,
+    format_compare,
     format_identity,
+    format_report,
+    format_summary,
     format_unit_log,
     format_villager_list,
-    print_report,
-    print_summary,
     rename_command,
     suggested_name,
 )
@@ -42,10 +44,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     analyze.add_argument("replay", help="Path to a .aoe2record file.")
     analyze.add_argument(
+        "-p",
+        "--player",
+        default=None,
+        help="Only analyse this player (name substring or numeric id).",
+    )
+    analyze.add_argument(
         "-s",
         "--summary-only",
         action="store_true",
         help="Print only the overview section (no build order / assignments).",
+    )
+    analyze.add_argument(
+        "-o",
+        "--out",
+        default=None,
+        help="Write the report to this file instead of the screen.",
     )
     analyze.add_argument(
         "-r",
@@ -77,6 +91,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     identify.add_argument(
         "replays", nargs="+", help="One or more .aoe2record files (globs work).",
+    )
+
+    compare = subparsers.add_parser(
+        "compare",
+        help="Compare key metrics for one player across several replays.",
+    )
+    compare.add_argument(
+        "replays", nargs="+", help="Two or more .aoe2record files (globs work).",
+    )
+    compare.add_argument(
+        "-p", "--player", required=True,
+        help="Player to compare (name substring or numeric id).",
+    )
+    compare.add_argument(
+        "-o", "--out", default=None, help="Write the table to this file.",
     )
 
     assignments = subparsers.add_parser(
@@ -157,11 +186,53 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         summary = _load(args.replay)
         if summary is None:
             return 1
+
+        players = None
+        if args.player is not None:
+            p = find_player(summary, args.player)
+            if p is None:
+                names = ", ".join(pl.name for pl in summary.players)
+                print(f"error: no player matching '{args.player}'. "
+                      f"Players: {names}", file=sys.stderr)
+                return 1
+            players = [p]
+
         if args.summary_only:
-            print_summary(summary)
+            text = format_summary(summary, players)
         else:
-            print_report(summary)
-        _suggest_and_maybe_rename(args.replay, summary, args.rename)
+            text = format_report(summary, players)
+
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            print(f"Wrote report to {args.out}")
+        else:
+            print(text, end="")
+            _suggest_and_maybe_rename(args.replay, summary, args.rename)
+        return 0
+
+    if args.command == "compare":
+        games: list = []
+        for replay in args.replays:
+            summary = _load(replay)
+            if summary is None:
+                continue
+            p = find_player(summary, args.player)
+            if p is None:
+                print(f"{replay}: no player matching '{args.player}' — skipped",
+                      file=sys.stderr)
+                continue
+            games.append((os.path.basename(replay), p))
+        if not games:
+            print("error: no games matched the player.", file=sys.stderr)
+            return 1
+        text = format_compare(games)
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            print(f"Wrote comparison to {args.out}")
+        else:
+            print(text, end="")
         return 0
 
     if args.command == "villagers":
