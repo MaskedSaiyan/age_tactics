@@ -106,6 +106,24 @@ def _age_segments(p: PlayerSummary, duration: float) -> list[dict]:
     return segs
 
 
+def _first_buildings(p: PlayerSummary) -> dict:
+    """{building name: {first: secs, count: n}} — first placement of each type.
+
+    Skips unknown ids (`Building #NNN`). Build order is chronological, so the
+    first time we see a name is its earliest placement.
+    """
+    out: dict[str, dict] = {}
+    for e in p.build_order:
+        if e.kind != "building" or e.name.startswith("Building #"):
+            continue
+        b = out.get(e.name)
+        if b is None:
+            out[e.name] = {"first": round(e.game_time), "count": e.count}
+        else:
+            b["count"] += e.count
+    return out
+
+
 def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> dict:
     marks = list(range(0, int(duration) + step, step))
     vills, mil, idle = [], [], []
@@ -148,6 +166,7 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
                      "idle": round(tc.idle_seconds),
                      "gaps": [[round(g.start), round(g.seconds)] for g in tc.idle_gaps]}
                     for tc in p.town_centers],
+        "buildings": _first_buildings(p),
         "series": {"villagers": vills, "military": mil, "idle": None if _is_ai(p) else idle},
         "metrics": {
             "feudal": age_str("Feudal"),
@@ -242,6 +261,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .tl-seg{display:flex;align-items:center;justify-content:center;font-size:11px;color:#0b0f15;font-weight:700;white-space:nowrap;overflow:hidden}
   .tl-seg.adv{color:#e6edf3;font-weight:600;font-style:italic}
   .tc-track{flex:1;position:relative;height:38px;background:#0b0f15;border:1px solid var(--line);border-radius:6px}
+  .bld-mark{position:absolute;width:8px;height:8px;border-radius:50%;margin-left:-4px;border:1px solid #0b0f15;cursor:default}
   .tc-life{position:absolute;height:4px;border-radius:2px;background:#33414f;opacity:.55}
   .tc-bar{position:absolute;height:4px;border-radius:2px;opacity:.95}
   .tc-grid{position:absolute;top:0;bottom:0;width:1px;background:#1a2430}
@@ -284,6 +304,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <h2>Centros urbanos (Town Centers)</h2>
   <div class="sub">Cada barra = un TC. <b>Color sólido = produciendo villagers</b>; el <b>hueco gris = idle</b> (cola vacía). Más barras = más boom; menos huecos = mejor. (pasa el cursor para el idle por TC)</div>
   <div class="panel" id="tcs"></div>
+
+  <h2>Construcciones — cuándo entró cada edificio</h2>
+  <div class="sub">Primer edificio de cada tipo, por jugador (un punto por jugador). De esto depende qué podías producir — p.ej. el <b>Barracks</b> marca cuándo pudiste sacar milicia.</div>
+  <div class="panel" id="bldtl"></div>
 
   <h2>Progresión</h2>
   <div class="legend" id="legend"></div>
@@ -517,6 +541,26 @@ DATA.players.forEach(p=>{
 });
 appendTimeAxis(tcWrap);
 addHoverLine(tcWrap, tcsAt);
+
+// ---- Buildings: when each key building type first went down (per player) ----
+const KEY_BUILDINGS=["House","Lumber Camp","Mill","Mining Camp","Farm","Dock","Barracks",
+  "Market","Blacksmith","Archery Range","Stable","Watch Tower","Monastery","University",
+  "Siege Workshop","Castle"];
+const bldWrap=$("bldtl");
+KEY_BUILDINGS.forEach(bn=>{
+  if(!DATA.players.some(p=>p.buildings&&p.buildings[bn])) return;
+  let marks="";
+  DATA.players.forEach((p,pi)=>{
+    const b=p.buildings&&p.buildings[bn]; if(!b)return;
+    marks+=`<div class="bld-mark" style="left:${b.first/DUR*100}%;top:${5+pi*6}px;background:${p.color}" `+
+           `title="${p.name}: ${bn} a ${fmt(b.first)}${b.count>1?' (×'+b.count+')':''}"></div>`;
+  });
+  const row=document.createElement("div");row.className="tl-row";
+  row.innerHTML=`<div class="tl-name">${bn}</div><div class="tc-track">${gridHTML()}${marks}</div>`;
+  bldWrap.appendChild(row);
+});
+appendTimeAxis(bldWrap);
+addHoverLine(bldWrap, ()=>"" );
 
 // ---- charts ----
 const hidden=new Set();
