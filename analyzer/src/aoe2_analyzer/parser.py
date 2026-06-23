@@ -45,6 +45,7 @@ from .models import (
     NotableEvent,
     PlayerSummary,
     ReplaySummary,
+    TownCenter,
     UnitCommand,
 )
 
@@ -254,6 +255,7 @@ def _parse_real(path: str) -> ReplaySummary:
         # Best-effort name: header string table, in slot order. Falls back to id.
         name = names[idx] if idx < len(names) else f"Player {pid}"
         tc = _estimate_main_tc_idle(tc_events.get(pid, []))
+        town_centers = _detect_town_centers(tc_events.get(pid, []))
         is_ai = ai_orders.get(pid, 0) > 0
         real_ages = _build_age_timings(age_clicks.get(pid, {}))
         # AI players emit no RESEARCH age-up; estimate their ages from buildings.
@@ -276,6 +278,8 @@ def _parse_real(path: str) -> ReplaySummary:
                 main_tc_last_seconds=tc["last"],
                 total_idle_tc_seconds=tc["idle_total"],
                 main_tc_idle_gaps=tc["gaps"],
+                town_centers=town_centers,
+                peak_town_centers=len(town_centers) or None,
                 resource_dropoffs=dropoffs.get(pid, []),
             )
         )
@@ -388,6 +392,31 @@ def _estimate_age_timings(builds: list[tuple]) -> list[AgeTiming]:
             )
         )
     return timings
+
+
+def _detect_town_centers(occupations: list[tuple]) -> list[TownCenter]:
+    """Every Town Center that trained villagers, with its first/last produce time.
+
+    Only Town Centers train villagers, so each distinct object id seen in a villager
+    event is a TC. Reveals a boom's extra TCs (the idle model only tracks the first).
+    Note: a single batch-queue can list several TCs at once, so per-TC villager
+    *counts* would be inflated — we report only the count of TCs and their windows.
+    """
+    spans: dict[int, list[float]] = {}
+    for t, objs, kind, _value in occupations:
+        if kind != "vil":
+            continue
+        for obj in objs or []:
+            if not isinstance(obj, int):
+                continue
+            s = spans.get(obj)
+            if s is None:
+                spans[obj] = [t, t]
+            else:
+                s[1] = t
+    tcs = [TownCenter(object_id=o, first=f, last=l) for o, (f, l) in spans.items()]
+    tcs.sort(key=lambda tc: tc.first)
+    return tcs
 
 
 def _build_age_timings(clicks: dict[str, float]) -> list[AgeTiming]:

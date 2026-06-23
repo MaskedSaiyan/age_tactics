@@ -143,6 +143,7 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
             "castle": age_str("Castle"),
             "imperial": age_str("Imperial"),
             "f2c": _mmss(click("Castle") - feudal) if feudal and click("Castle") else "--:--",
+            "townCenters": len(p.town_centers) or "—",
             "villsByFeudal": vills_by_feudal if vills_by_feudal is not None else "—",
             "totalVills": tv,
             "totalMil": tm,
@@ -348,7 +349,8 @@ function num(v){ // mm:ss -> seconds, plain number -> itself, else NaN
 const METRICS=[
   ["feudal","Feudal",true],["castle","Castle",true],["imperial","Imperial",true],
   ["f2c","Feudal→Castle",true],["villsByFeudal","Vills @Feudal",false],
-  ["totalVills","Vills totales",false],["totalMil","Militares",false],["idleTotal","TC idle",true],
+  ["townCenters","Town Centers",false],
+  ["totalVills","Vills totales",false],["totalMil","Militares",false],["idleTotal","TC idle (1er)",true],
 ];
 // winning value per metric (numeric)
 const winners={};

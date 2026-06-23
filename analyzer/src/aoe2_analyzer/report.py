@@ -94,6 +94,7 @@ def _format_player(p: PlayerSummary) -> list[str]:
 
     out.extend(_format_pace(p))
     out.extend(_format_age_breakdown(p))
+    out.extend(_format_town_centers(p))
     out.extend(_format_tc_idle(p))
 
     out.append("  Activity (command stream):")
@@ -169,16 +170,29 @@ def _format_age_breakdown(p: PlayerSummary) -> list[str]:
     return out
 
 
+def _format_town_centers(p: PlayerSummary) -> list[str]:
+    """List every Town Center that trained villagers, with its online window."""
+    if not p.town_centers:
+        return []
+    n = len(p.town_centers)
+    out = [f"  Town Centers: {n}" + ("  (boom)" if n >= 3 else "")]
+    for i, tc in enumerate(p.town_centers, 1):
+        tag = " (starting)" if i == 1 else ""
+        out.append(
+            f"    TC{i}{tag}: villagers {_fmt_time(tc.first)} → {_fmt_time(tc.last)}"
+        )
+    return out
+
+
 def _format_tc_idle(p: PlayerSummary, top_gaps: int = 5) -> list[str]:
     """Show the estimated idle time of the player's first Town Center."""
     if p.main_tc_id is None or p.total_idle_tc_seconds is None:
         return []
-    out = [f"  Main Town Center (obj {p.main_tc_id}) — idle estimate:"]
-    out.append(f"    Villagers trained here: {p.main_tc_villagers}")
-    out.append(
-        f"    Production window:      {_fmt_time(p.main_tc_first_seconds)}"
-        f" → {_fmt_time(p.main_tc_last_seconds)}"
-    )
+    multi = len(p.town_centers) > 1
+    label = "First Town Center" if multi else "Main Town Center"
+    out = [f"  {label} (obj {p.main_tc_id}) — idle estimate:"]
+    out.append(f"    Production window:      {_fmt_time(p.main_tc_first_seconds)}"
+               f" → {_fmt_time(p.main_tc_last_seconds)}")
     lost_vils = p.total_idle_tc_seconds / 25.0
     out.append(
         f"    Idle (not training):    {_fmt_time(p.total_idle_tc_seconds)}"
@@ -190,6 +204,10 @@ def _format_tc_idle(p: PlayerSummary, top_gaps: int = 5) -> list[str]:
             out.append(
                 f"      at {_fmt_time(gap.start)}  idle {_fmt_time(gap.seconds)}"
             )
+    if multi:
+        out.append("    ⚠ Idle covers only this first TC. With batch-queueing across "
+                   f"{len(p.town_centers)} TCs it reads low — judge the boom by TC count "
+                   "+ villagers, not this number.")
     return out
 
 

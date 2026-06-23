@@ -4,11 +4,12 @@
 
 Reverse-engineered from a real **VIT | Hera** game (multiple-time AoE2 world champion) vs
 *"if i lose it all"* — a 52-minute 1v1. This is the build, villager by villager, age by age.
-Drill it until it's automatic. The number that makes it work, and the one you have to beat:
+Drill it until it's automatic. The two numbers that make it work, and the gap you have to close:
 
-> **Hera's Town Center idle time, whole game: `00:00`.** Yours last game: `14:45`.
-> Copy *that* first — the villager queue is **never** empty. In the boom he even **queues
-> villagers in batches of 3–5** so a TC never waits on his next click.
+> **Hera ran `5` Town Centers. You ran `1`.** And he kept them *all* fed — his first TC alone
+> never went idle across 47 minutes (he even **queues villagers in batches of 3–5** so a TC
+> never waits on his next click). Result: **190 villagers vs your 49.**
+> The boom isn't magic — it's *more Town Centers, all queued, never empty.*
 
 > **Villager `#N`** is the Nth villager out. Drop a **House** before 5/10/15/20 pop — never get
 > housed. Building/age/military **times** are read straight from Hera's replay — use them as
@@ -26,6 +27,7 @@ Drill it until it's automatic. The number that makes it work, and the one you ha
 | **Feudal** | **~6:41 click**, ~22 pop |
 | **Castle** | **~16:46 click**, ~40 villagers |
 | **Imperial** | **~29:44 click**, ~139 villagers |
+| **Town Centers** | **5** (start + 4 added ~21:00 / 21:05 / 25:12 / 33:31) |
 | **Army** | ~281 Spear→Pike + ~34 Skirmisher trash, + a gold punch & siege |
 | **Win condition** | 190 villagers + a gold-free wall they can't out-produce. |
 
@@ -128,22 +130,28 @@ Drill it until it's automatic. The number that makes it work, and the one you ha
 
 > **⏫ ▶ Click Castle at ~40 villagers (~16:46).**
 
-### 🏰 Castle Age — *the boom detonates (click 16:46)*
+### 🏰 Castle Age — *build TCs and boom (click 16:46)*
 
-**Farms first (17:19–18:56)** — five more farms go down before the next villager even pops; the whole eco is rolling onto farms + gold.
+> **This is the age that wins the game, and the one you skip.** Hera goes from **1 Town Center to
+> 5** here. Spend your first Castle-age stone/wood on **Town Centers**, not units — each one is a
+> villager factory that pays for itself in minutes.
 
-**`41` (19:32), `42` (19:55), `43` (20:19) Farm/Gold** — single villagers while the new Town Centers warm up.
+**Farms first (17:19–18:56)** — five more farms go down before the next villager even pops; the eco rolls onto farms + gold while you save for TCs.
 
-**`44–46` (20:54, batch of 3) Farm** — here's the tell: **villagers start popping in threes** = multiple TCs all producing. From now on, **keep every TC's queue full.**
+**`41` (19:32), `42` (19:55), `43` (20:19)** — single villagers; **drop your 2nd & 3rd Town Centers now** (Hera's came online ~20:54 and 21:05).
 
-**`47–54` (21:05–21:42) Farm/Wood** — a steady stream; lay farms (21:00–21:37) and Houses (four at 21:42–21:43) so you never house-block the boom.
+**`44–46` (20:54, batch of 3) Farm** — the tell: **villagers pop in threes** = the new TCs are running. From here, **keep every TC's queue full** — select all of them and shift-queue.
 
-**`55–73` (21:58–22:55) — batches of 3–4 every few seconds** — this is peak boom. Hera **shift-queues 3–5 villagers per TC** so not one of them waits. Spread them: **farms, wood, gold** to fund Pikes + the first Skirmishers.
+**`47–54` (21:05–21:42) Farm/Wood** — steady stream; farms (21:00–21:37) + Houses (four at 21:42) so you never house-block the boom.
 
-**`74`+ (23:16→) keep going to ~139 by Imperial.** Add a **Monastery (23:54)** for a Monk, a **Castle (28:54)** as an anchor, and feed **Pikemen + Skirmishers** as the enemy's army demands.
+**`55–73` (21:58–22:55) — batches of 3–4 every few seconds** — peak boom across all TCs. Hera **shift-queues 3–5 villagers per TC** so not one waits. Spread them: **farms, wood, gold.**
 
-> Castle rule: **40 → 139 villagers, idle still `00:00`.** This is the age everyone else lets the
-> TC cool. You don't — the queues stay full, in batches.
+**Add the `4th TC` (~25:12)**, a **Monastery (23:54)**, a defensive **Castle (28:54)**.
+
+**`74`+ (23:16→) push to ~139 villagers by Imperial**, feeding **Pikemen + the first Skirmishers** as the enemy demands.
+
+> Castle rule: **1 → 5 Town Centers, 40 → 139 villagers.** Everyone else makes army here and stays
+> on 1–2 TCs. Hera makes *Town Centers* and lets the eco buy the army later.
 
 ### 👑 Imperial Age — *bury them (click 29:44, ~139 vils)*
 
@@ -153,7 +161,7 @@ Drill it until it's automatic. The number that makes it work, and the one you ha
 
 **🏠 `Archery Range` ×8 (30:47–31:07)** — eight ranges at once. This is the **Skirmisher factory**: from 31:44 they pour out in **x5 batches**.
 
-**`145–172`+ keep training to ~185–190 villagers**, mixed onto farms / wood (extra **Lumber Camps** 32:12, 32:53) / gold.
+**`145–172`+ keep training to ~185–190 villagers** off all TCs (a **5th TC** comes online ~33:31), mixed onto farms / wood (extra **Lumber Camps** 32:12, 32:53) / gold.
 
 **The army:**
 - **Trash core:** Spear → **Pikeman** line ends ~**281 strong** + ~**34 Skirmishers** — a gold-free wall that beats cavalry *and* archers.
@@ -164,14 +172,16 @@ Drill it until it's automatic. The number that makes it work, and the one you ha
 
 ## Tips
 
-- **Drill the queue, not the clock.** Villager in the TC the instant the last one pops; in the boom, **shift-queue 3–5 at a time** like Hera so a TC never idles. Hit the exact times later.
+- **More Town Centers, not more army (in Castle).** Hera's first Castle-age stone went to **TCs #2–#5**, not units. One extra TC ≈ a free stream of villagers; that's where the 190-vs-49 gap is born.
+- **Drill the queue, not the clock.** Villager in the TC the instant the last one pops; in the boom, **select all your TCs and shift-queue 3–5 at a time** like Hera so none idles. Hit the exact times later.
 - **Both boars + deer = idle insurance.** The early Mill + food focus is *why* the TC never waited.
 - **4 Spearmen held a world-class player in Feudal.** You don't need a Feudal army — you need to *not die* while the eco runs.
 - **Trash wins long games.** Pike + Skirm costs no gold; a big eco makes it endless. Save gold for the punch units.
 
 ## TL;DR
 
-**Vils non-stop (idle 0) → Mill 1:56 + both boars → Lumber Camp 5:56 → Feudal 6:41 → Barracks 8:00,
-4 Spearmen + 2 Watch Towers to not die, ~14 farms → Castle 16:46, boom in 3-vil batches to 139 →
-Imperial 29:44, 8 Archery Ranges → mass Pike + Skirmisher + a gold punch.** 90% of this build is
-"the TC queue is never empty." Go beat your 14:45.
+**Vils non-stop → Mill 1:56 + both boars → Lumber Camp 5:56 → Feudal 6:41 → Barracks 8:00, 4
+Spearmen + 2 Watch Towers to not die, ~14 farms → Castle 16:46: build up to 5 Town Centers and
+shift-queue all of them to 139 vils → Imperial 29:44, 8 Archery Ranges → mass Pike + Skirmisher +
+a gold punch.** The whole build is **more Town Centers, all queued, never empty** — he ran 5, you
+ran 1. Go close that gap.

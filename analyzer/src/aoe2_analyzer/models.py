@@ -78,6 +78,20 @@ class NotableEvent:
 
 
 @dataclass
+class TownCenter:
+    """One Town Center that produced villagers, by its object id.
+
+    `first`/`last` are the first and last villager-queue times from this building
+    (seconds). The starting TC produces from ~00:00; extra TCs from when built —
+    so this list shows a boom's whole TC ramp, not just the first one.
+    """
+
+    object_id: int
+    first: float
+    last: float
+
+
+@dataclass
 class UnitCommand:
     """One command issued to a specific unit (by its object id).
 
@@ -138,6 +152,10 @@ class PlayerSummary:
     main_tc_first_seconds: Optional[float] = None  # first villager queued from it
     main_tc_last_seconds: Optional[float] = None  # last villager queued from it
     main_tc_idle_gaps: list[IdleGap] = field(default_factory=list)
+
+    # ALL Town Centers that trained villagers — each (object_id, first, last) so a
+    # boom's extra TCs are visible, not just the first one. Sorted by first time.
+    town_centers: list["TownCenter"] = field(default_factory=list)
 
     # Drop-off buildings for resource inference: (build_time, x, y, resource).
     resource_dropoffs: list[tuple] = field(default_factory=list)
