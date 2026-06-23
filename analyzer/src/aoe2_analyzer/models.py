@@ -89,6 +89,7 @@ class TownCenter:
     object_id: int
     first: float
     last: float
+    idle_seconds: float = 0.0  # idle in THIS TC's own production line (first→last)
 
 
 @dataclass

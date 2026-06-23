@@ -308,29 +308,15 @@ def _parse_real(path: str) -> ReplaySummary:
     )
 
 
-def _estimate_main_tc_idle(occupations: list[tuple]) -> dict:
-    """Estimate idle time of the player's FIRST Town Center.
+def _model_tc_idle(occupations: list[tuple], tc_obj: int) -> dict:
+    """Model one Town Center's production line and find its idle gaps.
 
-    `occupations` is a list of (time, object_ids, kind, value) where kind is
-    "vil" (value=count, ~25s each) or "age" (value=research seconds). We pick
-    the main TC as the object the first villager was trained from, then model
-    its production line: any gap with nothing training/researching is idle.
-
-    Idle is only counted between the first and last villager trained there (we
-    don't penalise a TC you deliberately stopped using late-game).
+    `occupations` is (time, object_ids, kind, value); kind "vil" (value=count,
+    ~25s each) or "age" (research seconds). We keep only events involving `tc_obj`
+    and walk them: any stretch where nothing is training/researching is idle.
+    Idle is counted only between this TC's first and last villager.
     """
-    empty = {
-        "tc_id": None, "villagers": None, "first": None,
-        "last": None, "idle_total": None, "gaps": [],
-    }
-    vil_events = [o for o in occupations if o[2] == "vil" and o[1]]
-    if not vil_events:
-        return empty
-
-    main_tc = vil_events[0][1][0]
-    # All occupations that involve the main TC, in chronological order.
-    occ = sorted((o for o in occupations if main_tc in (o[1] or [])), key=lambda o: o[0])
-
+    occ = sorted((o for o in occupations if tc_obj in (o[1] or [])), key=lambda o: o[0])
     busy_until: Optional[float] = None
     idle_total = 0.0
     gaps: list[IdleGap] = []
@@ -355,11 +341,24 @@ def _estimate_main_tc_idle(occupations: list[tuple]) -> dict:
         else:  # age research occupies the TC for its full duration
             busy_until += float(value)
 
-    gaps.sort(key=lambda g: g.seconds, reverse=True)
     return {
-        "tc_id": main_tc, "villagers": villagers, "first": first,
+        "tc_id": tc_obj, "villagers": villagers, "first": first,
         "last": last, "idle_total": idle_total, "gaps": gaps,
     }
+
+
+def _estimate_main_tc_idle(occupations: list[tuple]) -> dict:
+    """Idle estimate for the player's FIRST Town Center (gaps sorted by size)."""
+    empty = {
+        "tc_id": None, "villagers": None, "first": None,
+        "last": None, "idle_total": None, "gaps": [],
+    }
+    vil_events = [o for o in occupations if o[2] == "vil" and o[1]]
+    if not vil_events:
+        return empty
+    result = _model_tc_idle(occupations, vil_events[0][1][0])
+    result["gaps"].sort(key=lambda g: g.seconds, reverse=True)
+    return result
 
 
 def _estimate_age_timings(builds: list[tuple]) -> list[AgeTiming]:
@@ -402,19 +401,23 @@ def _detect_town_centers(occupations: list[tuple]) -> list[TownCenter]:
     Note: a single batch-queue can list several TCs at once, so per-TC villager
     *counts* would be inflated — we report only the count of TCs and their windows.
     """
-    spans: dict[int, list[float]] = {}
-    for t, objs, kind, _value in occupations:
+    objs_seen: list[int] = []
+    for _t, objs, kind, _value in occupations:
         if kind != "vil":
             continue
         for obj in objs or []:
-            if not isinstance(obj, int):
-                continue
-            s = spans.get(obj)
-            if s is None:
-                spans[obj] = [t, t]
-            else:
-                s[1] = t
-    tcs = [TownCenter(object_id=o, first=f, last=l) for o, (f, l) in spans.items()]
+            if isinstance(obj, int) and obj not in objs_seen:
+                objs_seen.append(obj)
+
+    tcs = []
+    for obj in objs_seen:
+        m = _model_tc_idle(occupations, obj)
+        if m["first"] is None:
+            continue
+        tcs.append(TownCenter(
+            object_id=obj, first=m["first"], last=m["last"],
+            idle_seconds=m["idle_total"],
+        ))
     tcs.sort(key=lambda tc: tc.first)
     return tcs
 

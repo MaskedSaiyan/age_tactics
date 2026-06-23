@@ -171,15 +171,19 @@ def _format_age_breakdown(p: PlayerSummary) -> list[str]:
 
 
 def _format_town_centers(p: PlayerSummary) -> list[str]:
-    """List every Town Center that trained villagers, with its online window."""
+    """Every Town Center that trained villagers, its online window and own idle."""
     if not p.town_centers:
         return []
     n = len(p.town_centers)
-    out = [f"  Town Centers: {n}" + ("  (boom)" if n >= 3 else "")]
+    total_idle = sum(tc.idle_seconds for tc in p.town_centers)
+    out = [f"  Town Centers: {n}" + ("  (boom)" if n >= 3 else "")
+           + f"   — total idle across all TCs: {_fmt_time(total_idle)}"
+           f" (≈ {total_idle / 25.0:.0f} villagers' worth)"]
     for i, tc in enumerate(p.town_centers, 1):
         tag = " (starting)" if i == 1 else ""
         out.append(
             f"    TC{i}{tag}: villagers {_fmt_time(tc.first)} → {_fmt_time(tc.last)}"
+            f"   idle {_fmt_time(tc.idle_seconds)}"
         )
     return out
 

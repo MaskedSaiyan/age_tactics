@@ -137,7 +137,8 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
         "agesEstimated": _ages_estimated(p),
         "ages": {a: click(a) for a in _AGE_ORDER[1:]},
         "timeline": _age_segments(p, duration),
-        "tcSpans": [[round(tc.first), round(tc.last)] for tc in p.town_centers],
+        "tcSpans": [[round(tc.first), round(tc.last), round(tc.idle_seconds)]
+                    for tc in p.town_centers],
         "series": {"villagers": vills, "military": mil, "idle": None if _is_ai(p) else idle},
         "metrics": {
             "feudal": age_str("Feudal"),
@@ -225,6 +226,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .tl-seg.adv{color:#e6edf3;font-weight:600;font-style:italic}
   .tc-track{flex:1;position:relative;height:38px;background:#0b0f15;border:1px solid var(--line);border-radius:6px}
   .tc-bar{position:absolute;height:4px;border-radius:2px;opacity:.9}
+  .tc-idle{position:absolute;right:0;top:0;height:100%;background:#ff5d5d;border-radius:0 2px 2px 0;opacity:.85}
   .tc-grid{position:absolute;top:0;bottom:0;width:1px;background:#1a2430}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:6px 0 10px}
   .legend span{cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;user-select:none;opacity:1}
@@ -263,7 +265,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <div class="panel" id="timeline"></div>
 
   <h2>Centros urbanos (Town Centers)</h2>
-  <div class="sub">Cada barra = un TC produciendo villagers, en su ventana de actividad. <b>Más barras = más boom.</b></div>
+  <div class="sub">Cada barra = un TC en su ventana de actividad. El trozo <span style="color:#ff5d5d">rojo</span> = tiempo <b>idle</b> de ese TC. <b>Más barras = más boom; menos rojo = mejor.</b> (idle por TC; pasa el cursor para el detalle)</div>
   <div class="panel" id="tcs"></div>
 
   <h2>Progresión</h2>
@@ -415,14 +417,19 @@ DATA.players.forEach(p=>{
   // 5-minute gridlines for reference
   let grid="";
   for(let t=300;t<DUR;t+=300){grid+=`<div class="tc-grid" style="left:${t/DUR*100}%"></div>`;}
+  let idleTotal=0;
   const bars=spans.map((s,i)=>{
-    const left=s[0]/DUR*100, w=Math.max(0.5,(s[1]-s[0])/DUR*100);
+    const span=s[1]-s[0], idle=s[2]||0; idleTotal+=idle;
+    const left=s[0]/DUR*100, w=Math.max(0.5,span/DUR*100);
+    const idleW = span>0 ? Math.min(100,(idle/span)*100) : 0;  // red = idle, right-aligned
+    const redBar = idleW>0 ? `<div class="tc-idle" style="width:${idleW}%"></div>` : "";
     return `<div class="tc-bar" style="left:${left}%;width:${w}%;top:${5+i*6}px;background:${p.color}" `+
-           `title="TC${i+1}: ${fmt(s[0])} → ${fmt(s[1])}"></div>`;
+           `title="TC${i+1}: ${fmt(s[0])} → ${fmt(s[1])} · idle ${fmt(idle)}">${redBar}</div>`;
   }).join("");
   const row=document.createElement("div");row.className="tl-row";
-  const tag = spans.length ? `<span class="tag">${spans.length} TC</span>`
-            : `<span class="tag">— sin datos${p.isAI?" (IA)":""}</span>`;
+  const tag = spans.length
+    ? `<span class="tag">${spans.length} TC</span> <span class="tag" style="color:#ffb454">idle ${fmt(idleTotal)}</span>`
+    : `<span class="tag">— sin datos${p.isAI?" (IA)":""}</span>`;
   row.innerHTML=`<div class="tl-name"><span class="dot" style="background:${p.color}"></span>${p.name} ${tag}</div>`+
     `<div class="tc-track">${grid}${bars}</div>`;
   tcWrap.appendChild(row);
