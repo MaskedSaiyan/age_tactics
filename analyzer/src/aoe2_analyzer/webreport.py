@@ -157,15 +157,17 @@ def build_html(
     step: int = 20,
     games: list[dict] | None = None,
     selected: str | None = None,
+    player_filter: list[str] | None = None,
 ) -> str:
-    """Render the report. `games` (list of {file,label}) + `selected` power the
-    server's game picker; omit them for a standalone single-game file."""
+    """Render the report. `games` (list of {file,label,players}) + `selected` +
+    `player_filter` power the server's pickers; omit them for a standalone file."""
     duration = summary.game_duration_seconds or 0
     players = summary.players
     name_by_pid = {p.player_id: p.name for p in players}
     data = {
         "games": games or [],
         "selected": selected,
+        "playerFilter": player_filter or [],
         "meta": {
             "matchup": " vs ".join(p.name for p in players) or "unknown",
             "version": summary.game_version or "unknown",
@@ -290,17 +292,46 @@ function showTip(html,x,y){tip.innerHTML=html;tip.style.opacity=1;
   tip.style.top=(y+14)+"px";}
 function hideTip(){tip.style.opacity=0;}
 
-// ---- game picker (only on the server, when >1 game is available) ----
+// ---- pickers (only on the server, when games are available) ----
 if(DATA.games && DATA.games.length){
-  const sel=document.createElement("select");
-  sel.style.cssText="background:#1a2230;color:#e6edf3;border:1px solid #2c3a4d;"+
-    "border-radius:8px;padding:8px 10px;font-size:14px;max-width:100%;min-width:320px";
-  DATA.games.forEach(g=>{const o=document.createElement("option");
-    o.value=g.file;o.textContent=g.label;if(g.file===DATA.selected)o.selected=true;sel.appendChild(o);});
-  sel.onchange=()=>{location.search="?game="+encodeURIComponent(sel.value);};
-  const lab=document.createElement("span");
-  lab.textContent="Partida: ";lab.style.cssText="color:#8b98a9;font-size:13px;margin-right:8px";
-  $("picker").appendChild(lab);$("picker").appendChild(sel);
+  const selCss="background:#1a2230;color:#e6edf3;border:1px solid #2c3a4d;"+
+    "border-radius:8px;padding:8px 10px;font-size:14px;max-width:100%";
+  const labCss="color:#8b98a9;font-size:13px;margin:0 8px 0 0";
+  const curPlayer=new URLSearchParams(location.search).get("player")||"";
+
+  // player filter (regular players only — AI personalities are excluded server-side)
+  let playerSel=null;
+  if((DATA.playerFilter||[]).length){
+    playerSel=document.createElement("select");
+    playerSel.style.cssText=selCss+";min-width:160px";
+    const optAll=document.createElement("option");
+    optAll.value="";optAll.textContent="Todos los jugadores";playerSel.appendChild(optAll);
+    DATA.playerFilter.forEach(n=>{const o=document.createElement("option");
+      o.value=n;o.textContent=n;if(n===curPlayer)o.selected=true;playerSel.appendChild(o);});
+    const l=document.createElement("span");l.textContent="Jugador: ";l.style.cssText=labCss;
+    $("picker").appendChild(l);$("picker").appendChild(playerSel);
+  }
+
+  // game picker, filtered by the chosen player
+  const gameSel=document.createElement("select");
+  gameSel.style.cssText=selCss+";min-width:340px;margin-left:14px";
+  function fillGames(player){
+    gameSel.innerHTML="";
+    const list=DATA.games.filter(g=>!player||(g.players||[]).includes(player));
+    list.forEach(g=>{const o=document.createElement("option");
+      o.value=g.file;o.textContent=g.label;if(g.file===DATA.selected)o.selected=true;gameSel.appendChild(o);});
+    const lg=document.createElement("span");lg.id="gcount";
+  }
+  fillGames(curPlayer);
+  gameSel.onchange=()=>{const p=playerSel?playerSel.value:"";
+    location.search="?game="+encodeURIComponent(gameSel.value)+(p?"&player="+encodeURIComponent(p):"");};
+  if(playerSel) playerSel.onchange=()=>{fillGames(playerSel.value);
+    const c=$("gcount"); if(c) c.textContent=` ${gameSel.options.length} partidas`;};
+
+  const lg=document.createElement("span");lg.textContent="Partida: ";lg.style.cssText=labCss+";margin-left:14px";
+  $("picker").appendChild(lg);$("picker").appendChild(gameSel);
+  const cnt=document.createElement("span");cnt.id="gcount";cnt.style.cssText=labCss+";margin-left:8px";
+  cnt.textContent=` ${gameSel.options.length} partidas`;$("picker").appendChild(cnt);
 }
 
 // ---- header ----

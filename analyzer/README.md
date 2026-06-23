@@ -51,9 +51,12 @@ yet, so those still show `unknown`.
 # This is the one to run — you don't have to remember the others.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record
 
-# Local web app: a dropdown to pick ANY replay in the folder, then view its
-# interactive report. Stdlib http.server, no install. Ctrl-C to stop.
+# Local web app: dropdowns to filter by PLAYER and pick ANY replay, then view
+# its interactive report. Stdlib http.server, no install. Ctrl-C to stop.
+# The player filter lists only regular players (recurring handles) — random AI
+# personalities are excluded automatically.
 python -m aoe2_analyzer serve --open            # serves ./samples on :8000
+python -m aoe2_analyzer serve --min-games 3     # count rarer opponents as regulars
 
 # Interactive HTML report (charts, age timeline, head-to-head, key events).
 # Self-contained single file — works offline, double-click to open, shareable.

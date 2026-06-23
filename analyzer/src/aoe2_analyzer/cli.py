@@ -110,6 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1).")
     serve.add_argument("--open", action="store_true", dest="open_browser",
                        help="Open the app in the browser once it's up.")
+    serve.add_argument(
+        "--min-games", type=int, default=None, dest="min_games",
+        help="A player must appear in this many games to count as a regular "
+             "(default: ~2%% of the folder). Lower = include rarer opponents.",
+    )
 
     progression = subparsers.add_parser(
         "progression",
@@ -422,7 +427,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             url = f"http://{args.host}:{args.port}/"
             import threading
             threading.Timer(0.8, lambda: _open_in_browser(url)).start()
-        serve_app(folder, host=args.host, port=args.port)
+        serve_app(folder, host=args.host, port=args.port, min_games=args.min_games)
         return 0
 
     if args.command == "progression":
