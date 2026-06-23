@@ -119,10 +119,17 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
         a = p.age(age)
         return a.click_time if a and a.click_time is not None else None
 
+    # Villagers queued by the moment each age was CLICKED — quick eco reference.
+    # Guard: cutoff=None means "count everything", so only count when the age was
+    # actually reached (else it would show the grand total).
+    def vills_at(age: str):
+        t = click(age)
+        return _counts_up_to(p.build_order, t)[0] if t is not None else None
+
     feudal = click("Feudal")
-    # Guard: cutoff=None means "count everything", so only compute vills-by-Feudal
-    # when the player actually reached Feudal (else AIs would show their grand total).
-    vills_by_feudal = _counts_up_to(p.build_order, feudal)[0] if feudal is not None else None
+    vills_by_feudal = vills_at("Feudal")
+    vills_by_castle = vills_at("Castle")
+    vills_by_imperial = vills_at("Imperial")
     tv, tm, _ = _counts_up_to(p.build_order, None)
     est = "~" if _ages_estimated(p) else ""
 
@@ -149,6 +156,8 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
             "f2c": _mmss(click("Castle") - feudal) if feudal and click("Castle") else "--:--",
             "townCenters": len(p.town_centers) or "—",
             "villsByFeudal": vills_by_feudal if vills_by_feudal is not None else "—",
+            "villsByCastle": vills_by_castle if vills_by_castle is not None else "—",
+            "villsByImperial": vills_by_imperial if vills_by_imperial is not None else "—",
             "totalVills": tv,
             "totalMil": tm,
             "idleTotal": _mmss(p.total_idle_tc_seconds) if p.total_idle_tc_seconds is not None else "—",
@@ -366,7 +375,10 @@ function num(v){ // mm:ss -> seconds, plain number -> itself, else NaN
 // metric key, label, and whether lower is better
 const METRICS=[
   ["feudal","Feudal",true],["castle","Castle",true],["imperial","Imperial",true],
-  ["f2c","Feudal→Castle",true],["villsByFeudal","Vills @Feudal",false],
+  ["f2c","Feudal→Castle",true],
+  ["villsByFeudal","Vills @Feudal",false],
+  ["villsByCastle","Vills @Castle",false],
+  ["villsByImperial","Vills @Imperial",false],
   ["townCenters","Town Centers",false],
   ["totalVills","Vills totales",false],["totalMil","Militares",false],["idleTotal","TC idle (1er)",true],
 ];
