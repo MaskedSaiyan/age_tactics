@@ -120,6 +120,19 @@ def _building_times(p: PlayerSummary) -> dict:
     return out
 
 
+def _military_events(p: PlayerSummary) -> dict:
+    """{unit name: [[secs, count], ...]} — every military production order.
+
+    Only unit types actually trained appear (unlike buildings, we don't list a
+    fixed catalogue). Each entry is one MAKE/DE_QUEUE event with its batch count.
+    """
+    out: dict[str, list] = {}
+    for e in p.build_order:
+        if e.kind == "unit" and _is_military(e.name):
+            out.setdefault(e.name, []).append([round(e.game_time), e.count])
+    return out
+
+
 def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> dict:
     marks = list(range(0, int(duration) + step, step))
     vills, mil, idle = [], [], []
@@ -163,6 +176,7 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
                      "gaps": [[round(g.start), round(g.seconds)] for g in tc.idle_gaps]}
                     for tc in p.town_centers],
         "buildings": _building_times(p),
+        "military": _military_events(p),
         "series": {"villagers": vills, "military": mil, "idle": None if _is_ai(p) else idle},
         "metrics": {
             "feudal": age_str("Feudal"),
@@ -308,6 +322,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <h2>Construcciones — cuándo entró cada edificio</h2>
   <div class="sub">Un punto por <b>cada</b> edificio construido (el <b>primero va resaltado</b> con borde blanco). Por jugador, en su carril. De esto depende qué podías producir — p.ej. el primer <b>Barracks</b> marca cuándo pudiste sacar milicia.</div>
   <div class="panel" id="bldtl"></div>
+
+  <h2>Militares — qué se creó y cuándo</h2>
+  <div class="sub">Solo las unidades que <b>de verdad se entrenaron</b> (una fila por tipo), un punto por orden de producción. Pasa el cursor para el tipo, cantidad y momento. Ordenadas por cuándo apareció cada tipo.</div>
+  <div class="panel" id="miltl"></div>
 
   <h2>Progresión</h2>
   <div class="legend" id="legend"></div>
@@ -564,6 +582,28 @@ KEY_BUILDINGS.forEach(bn=>{
 });
 appendTimeAxis(bldWrap);
 addHoverLine(bldWrap, ()=>"" );
+
+// ---- Military: only unit types actually trained, ordered by first appearance ----
+const milFirst={};
+DATA.players.forEach(p=>{const m=p.military||{};for(const n in m){const f=m[n][0][0];
+  if(!(n in milFirst)||f<milFirst[n]) milFirst[n]=f;}});
+const milOrder=Object.keys(milFirst).sort((a,b)=>milFirst[a]-milFirst[b]);
+const milWrap=$("miltl");
+if(!milOrder.length){ milWrap.innerHTML=`<div class="sub">Nadie entrenó unidades militares en esta partida.</div>`; }
+milOrder.forEach(name=>{
+  let marks="";
+  DATA.players.forEach((p,pi)=>{
+    const evs=p.military&&p.military[name]; if(!evs)return;
+    evs.forEach(ev=>{
+      marks+=`<div class="bld-mark" data-player="${p.name}" style="left:${ev[0]/DUR*100}%;top:${5+pi*6}px;background:${p.color}" `+
+             `title="${p.name}: ${name} ×${ev[1]} a ${fmt(ev[0])}"></div>`;
+    });
+  });
+  const row=document.createElement("div");row.className="tl-row";
+  row.innerHTML=`<div class="tl-name">${name}</div><div class="tc-track">${gridHTML()}${marks}</div>`;
+  milWrap.appendChild(row);
+});
+if(milOrder.length){ appendTimeAxis(milWrap); addHoverLine(milWrap, ()=>"" ); }
 
 // ---- charts ----
 const hidden=new Set();
