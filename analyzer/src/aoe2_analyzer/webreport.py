@@ -137,6 +137,7 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
         "agesEstimated": _ages_estimated(p),
         "ages": {a: click(a) for a in _AGE_ORDER[1:]},
         "timeline": _age_segments(p, duration),
+        "tcSpans": [[round(tc.first), round(tc.last)] for tc in p.town_centers],
         "series": {"villagers": vills, "military": mil, "idle": None if _is_ai(p) else idle},
         "metrics": {
             "feudal": age_str("Feudal"),
@@ -222,6 +223,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .tl-bar{flex:1;height:26px;border-radius:6px;overflow:hidden;display:flex;background:#0b0f15;border:1px solid var(--line)}
   .tl-seg{display:flex;align-items:center;justify-content:center;font-size:11px;color:#0b0f15;font-weight:700;white-space:nowrap;overflow:hidden}
   .tl-seg.adv{color:#e6edf3;font-weight:600;font-style:italic}
+  .tc-track{flex:1;position:relative;height:38px;background:#0b0f15;border:1px solid var(--line);border-radius:6px}
+  .tc-bar{position:absolute;height:4px;border-radius:2px;opacity:.9}
+  .tc-grid{position:absolute;top:0;bottom:0;width:1px;background:#1a2430}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:6px 0 10px}
   .legend span{cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;user-select:none;opacity:1}
   .legend span.off{opacity:.32;text-decoration:line-through}
@@ -257,6 +261,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <h2>Línea de edades</h2>
   <div class="sub">Color sólido = <b>en la era</b> · rayado <i>▸ subiendo</i> = <b>avanzando</b> (del click a la llegada ~estimada)</div>
   <div class="panel" id="timeline"></div>
+
+  <h2>Centros urbanos (Town Centers)</h2>
+  <div class="sub">Cada barra = un TC produciendo villagers, en su ventana de actividad. <b>Más barras = más boom.</b></div>
+  <div class="panel" id="tcs"></div>
 
   <h2>Progresión</h2>
   <div class="legend" id="legend"></div>
@@ -399,6 +407,25 @@ DATA.players.forEach(p=>{
   tl.appendChild(row);
 });
 function fmt(s){s=Math.round(s);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");}
+
+// ---- Town Centers (one bar per TC, stacked) ----
+const tcWrap=$("tcs");
+DATA.players.forEach(p=>{
+  const spans=p.tcSpans||[];
+  // 5-minute gridlines for reference
+  let grid="";
+  for(let t=300;t<DUR;t+=300){grid+=`<div class="tc-grid" style="left:${t/DUR*100}%"></div>`;}
+  const bars=spans.map((s,i)=>{
+    const left=s[0]/DUR*100, w=Math.max(0.5,(s[1]-s[0])/DUR*100);
+    return `<div class="tc-bar" style="left:${left}%;width:${w}%;top:${5+i*6}px;background:${p.color}" `+
+           `title="TC${i+1}: ${fmt(s[0])} → ${fmt(s[1])}"></div>`;
+  }).join("");
+  const row=document.createElement("div");row.className="tl-row";
+  row.innerHTML=`<div class="tl-name"><span class="dot" style="background:${p.color}"></span>${p.name} `+
+    `<span class="tag">${spans.length} TC</span></div>`+
+    `<div class="tc-track">${grid}${bars}</div>`;
+  tcWrap.appendChild(row);
+});
 
 // ---- charts ----
 const hidden=new Set();
