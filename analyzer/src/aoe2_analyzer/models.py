@@ -24,6 +24,8 @@ class AgeTiming:
     click_time: Optional[float] = None  # when the "advance" was clicked (real)
     arrival_time: Optional[float] = None  # when the age was reached
     arrival_estimated: bool = False  # True when arrival = click + standard research time
+    click_estimated: bool = False  # True when click_time is INFERRED (AI: no research
+    #                                event, so estimated from the first age-locked building)
 
     @property
     def transition_seconds(self) -> Optional[float]:
@@ -117,6 +119,7 @@ class PlayerSummary:
     civ: str
     team: Optional[int] = None
     winner: Optional[bool] = None
+    is_ai: bool = False  # AI players issue AI_ORDER actions and never RESEARCH ages
 
     age_timings: list[AgeTiming] = field(default_factory=list)
     build_order: list[BuildOrderEvent] = field(default_factory=list)

@@ -62,6 +62,17 @@ UNIT_COMMAND_ACTIONS = {
 # Age advance technologies, keyed by mgz RESEARCH technology_id.
 AGE_TECHS = {101: "Feudal", 102: "Castle", 103: "Imperial"}
 
+# Buildings that only become available in a given age — used to ESTIMATE the
+# age-up of players who never emit a RESEARCH event (AI). The first time such a
+# building is placed, the player must already be in that age (so the estimate is
+# an upper bound on the real age-up). Building ids per gamedata.py.
+#   Feudal: Market(84), Blacksmith(103), Archery Range(87), Stable(101)
+#   Castle: Siege Workshop(49), Monastery(104), Castle(82), extra Town Center(109)
+AGE_BUILDING_IDS = {
+    "Feudal": {84, 103, 87, 101},
+    "Castle": {49, 104, 82, 109},
+}
+
 # Standard age research durations (seconds) with no civ/tech modifiers applied.
 # Used to estimate arrival time from the (real) click time.
 AGE_RESEARCH_SECONDS = {"Feudal": 130.0, "Castle": 160.0, "Imperial": 190.0}
@@ -146,6 +157,9 @@ def _parse_real(path: str) -> ReplaySummary:
     # player_id -> drop-off buildings for resource inference: (time, x, y, res).
     dropoffs: dict[int, list[tuple]] = {}
     notable: list[NotableEvent] = []
+    ai_orders: dict[int, int] = {}  # AI_ORDER count per player (AI fingerprint)
+    # player_id -> list of (time, building_id) for age estimation of AI players.
+    building_builds: dict[int, list[tuple]] = {}
 
     def add_event(pid: int, t_sec: float, kind: str, name: str, count: int = 1) -> None:
         events.setdefault(pid, []).append(BuildOrderEvent(t_sec, kind, name, count))
@@ -174,9 +188,12 @@ def _parse_real(path: str) -> ReplaySummary:
                 actions[pid] = actions.get(pid, 0) + 1
                 name = getattr(action, "name", "")
                 t_sec = total_ms / 1000.0
+                if name == "AI_ORDER":
+                    ai_orders[pid] = ai_orders.get(pid, 0) + 1
                 if name == "BUILD":
                     builds[pid] = builds.get(pid, 0) + 1
                     bid = payload.get("building_id")
+                    building_builds.setdefault(pid, []).append((t_sec, bid))
                     add_event(pid, t_sec, "building", building_name(bid))
                     res = dropoff_resource(bid)
                     if res is not None:
@@ -237,12 +254,17 @@ def _parse_real(path: str) -> ReplaySummary:
         # Best-effort name: header string table, in slot order. Falls back to id.
         name = names[idx] if idx < len(names) else f"Player {pid}"
         tc = _estimate_main_tc_idle(tc_events.get(pid, []))
+        is_ai = ai_orders.get(pid, 0) > 0
+        real_ages = _build_age_timings(age_clicks.get(pid, {}))
+        # AI players emit no RESEARCH age-up; estimate their ages from buildings.
+        age_timings = real_ages or _estimate_age_timings(building_builds.get(pid, []))
         players.append(
             PlayerSummary(
                 player_id=pid,
                 name=name,
                 civ="unknown",  # TODO: full header parse for civ (see module docstring)
-                age_timings=_build_age_timings(age_clicks.get(pid, {})),
+                is_ai=is_ai,
+                age_timings=age_timings,
                 build_order=events.get(pid, []),
                 action_count=actions.get(pid),
                 build_count=builds.get(pid),
@@ -334,6 +356,38 @@ def _estimate_main_tc_idle(occupations: list[tuple]) -> dict:
         "tc_id": main_tc, "villagers": villagers, "first": first,
         "last": last, "idle_total": idle_total, "gaps": gaps,
     }
+
+
+def _estimate_age_timings(builds: list[tuple]) -> list[AgeTiming]:
+    """Estimate Feudal/Castle age-ups from the first age-locked building placed.
+
+    For AI players (no RESEARCH age-up event). The first time a Feudal-/Castle-
+    only building appears, the player is already in that age, so the time is an
+    upper bound on the real age-up. Clamped to be monotonic (Castle ≥ Feudal).
+    Imperial is not estimated (no clean, always-built signal).
+    """
+    first: dict[str, float] = {}
+    for t, bid in sorted(builds, key=lambda b: b[0]):
+        for age, ids in AGE_BUILDING_IDS.items():
+            if bid in ids and age not in first:
+                first[age] = t
+    if "Feudal" in first and "Castle" in first:
+        first["Feudal"] = min(first["Feudal"], first["Castle"])
+    timings: list[AgeTiming] = []
+    for age in _AGE_ORDER:
+        if age not in first:
+            continue
+        research = AGE_RESEARCH_SECONDS[age]
+        timings.append(
+            AgeTiming(
+                age=age,
+                click_time=first[age],
+                arrival_time=first[age] + research,
+                arrival_estimated=True,
+                click_estimated=True,
+            )
+        )
+    return timings
 
 
 def _build_age_timings(clicks: dict[str, float]) -> list[AgeTiming]:

@@ -81,11 +81,13 @@ def _format_player(p: PlayerSummary) -> list[str]:
     if p.age_timings:
         for age in p.age_timings:
             arrow = "~" if age.arrival_estimated else " "
+            click = f"~{_fmt_time(age.click_time)} (est)" if age.click_estimated \
+                else f" {_fmt_time(age.click_time)}"
+            tail = "" if age.click_estimated else f"   {_vs_target(age)}"
             out.append(
-                f"    {age.age:<8} click {_fmt_time(age.click_time)}"
+                f"    {age.age:<8} click {click}"
                 f"   arrive {arrow}{_fmt_time(age.arrival_time)}"
-                f"   (up-time {_fmt_time(age.transition_seconds)})"
-                f"   {_vs_target(age)}"
+                f"   (up-time {_fmt_time(age.transition_seconds)}){tail}"
             )
     else:
         out.append("    no age-up clicks found (AI player, or never advanced)")
@@ -249,11 +251,12 @@ def format_progression(summary: ReplaySummary, step_seconds: int = 180) -> str:
         if not p.age_timings:
             continue
         clicks = "  ".join(
-            f"{a.age[0]} {_fmt_time(a.click_time)}"
+            f"{a.age[0]} {'~' if a.click_estimated else ''}{_fmt_time(a.click_time)}"
             for a in p.age_timings if a.click_time is not None
         )
         if clicks:
-            out.append(f"  {p.name[:18]:<18} {clicks}")
+            tag = "  (IA, ~estimado)" if p.is_ai else ""
+            out.append(f"  {p.name[:18]:<18} {clicks}{tag}")
     out.append("")
     out.extend(table("VILLAGERS over time:", military=False))
     out.append("")
@@ -469,8 +472,8 @@ def format_assignments(summary: ReplaySummary, player_id: int) -> str:
 
 
 def _human_players(summary: ReplaySummary) -> list[PlayerSummary]:
-    """Players who clicked an age-up (i.e. not AI). Falls back to all players."""
-    return [p for p in summary.players if p.age_timings] or summary.players
+    """Human players (deep-dived by default). Falls back to all players."""
+    return [p for p in summary.players if not p.is_ai] or summary.players
 
 
 def find_player(summary: ReplaySummary, query: str) -> PlayerSummary | None:

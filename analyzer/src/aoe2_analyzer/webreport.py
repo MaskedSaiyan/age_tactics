@@ -32,8 +32,12 @@ def _mmss(seconds: float | None) -> str:
 
 
 def _is_ai(p: PlayerSummary) -> bool:
-    """AI players never click an age-up and have no modelled TC."""
-    return p.main_tc_id is None and not p.age_timings
+    return p.is_ai
+
+
+def _ages_estimated(p: PlayerSummary) -> bool:
+    """True when this player's age times are inferred (AI), not real clicks."""
+    return any(a.click_estimated for a in p.age_timings)
 
 
 def _build_order_rows(p: PlayerSummary) -> list[dict]:
@@ -92,16 +96,23 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
     # when the player actually reached Feudal (else AIs would show their grand total).
     vills_by_feudal = _counts_up_to(p.build_order, feudal)[0] if feudal is not None else None
     tv, tm, _ = _counts_up_to(p.build_order, None)
+    est = "~" if _ages_estimated(p) else ""
+
+    def age_str(age: str) -> str:
+        t = click(age)
+        return (est + _mmss(t)) if t is not None else "--:--"
+
     return {
         "name": p.name,
         "color": color,
         "isAI": _is_ai(p),
+        "agesEstimated": _ages_estimated(p),
         "ages": {a: click(a) for a in _AGE_ORDER[1:]},
         "series": {"villagers": vills, "military": mil, "idle": None if _is_ai(p) else idle},
         "metrics": {
-            "feudal": _mmss(click("Feudal")),
-            "castle": _mmss(click("Castle")),
-            "imperial": _mmss(click("Imperial")),
+            "feudal": age_str("Feudal"),
+            "castle": age_str("Castle"),
+            "imperial": age_str("Imperial"),
             "f2c": _mmss(click("Castle") - feudal) if feudal and click("Castle") else "--:--",
             "villsByFeudal": vills_by_feudal if vills_by_feudal is not None else "—",
             "totalVills": tv,
@@ -222,7 +233,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
   <div class="foot">
     Datos reales del command stream. Conteos = unidades <b>encoladas</b> (no vivas); excluyen los 3 villagers + scout iniciales.
-    TC idle se modela solo para jugadores humanos. Generado por <code>aoe report</code>.
+    TC idle se modela solo para jugadores humanos. Las edades de la IA (<span class="tag">~est</span>) son
+    <b>estimadas</b> por el primer edificio de cada era (la IA no registra su subida de edad). Generado por <code>aoe report</code>.
   </div>
 </div>
 
@@ -292,7 +304,8 @@ DATA.players.forEach(p=>{
     segs.push(`<div class="tl-seg" style="width:${w}%;background:${ageColors[nm]}" title="${nm}: ${fmt(st)}→${fmt(en)}">${w>9?nm:""}</div>`);
   });
   const row=document.createElement("div"); row.className="tl-row";
-  row.innerHTML=`<div class="tl-name"><span class="dot" style="background:${p.color}"></span>${p.name}</div>`+
+  const estTag = p.agesEstimated ? ` <span class="tag">~est</span>` : "";
+  row.innerHTML=`<div class="tl-name"><span class="dot" style="background:${p.color}"></span>${p.name}${estTag}</div>`+
     `<div class="tl-bar">${segs.join("")}</div>`;
   tl.appendChild(row);
 });
@@ -368,8 +381,8 @@ DATA.players.filter(p=>p.buildOrder.length).forEach(p=>{
   const d=document.createElement("details");
   const idleN=p.buildOrder.filter(r=>r.kind==="idle").length;
   d.innerHTML=`<summary><span class="dot" style="background:${p.color}"></span>${p.name}`+
-    (p.isAI?` <span class="tag">IA</span>`:``)+
-    ` <span class="tag">${idleN} huecos TC</span></summary>`+
+    (p.isAI?` <span class="tag">IA</span>`:` <span class="tag">${idleN} huecos TC</span>`)+
+    `</summary>`+
     `<div class="bo">`+p.buildOrder.map(r=>
       r.kind==="idle"
       ? `<div class="idle"><span class="t">${r.t}</span>⏳ ${r.label}</div>`
