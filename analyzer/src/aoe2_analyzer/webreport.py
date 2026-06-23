@@ -223,7 +223,12 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .best{color:#06d6a0} .worst{color:#ff6b6b}
   .tl-row{display:flex;align-items:center;gap:10px;margin:7px 0}
   .tl-name{width:130px;flex:0 0 auto;font-size:13px;display:flex;align-items:center;gap:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .tl-bar{flex:1;height:26px;border-radius:6px;overflow:hidden;display:flex;background:#0b0f15;border:1px solid var(--line)}
+  .tl-bar{flex:1;height:26px;border-radius:6px;overflow:hidden;display:flex;background:#0b0f15;border:1px solid var(--line);position:relative}
+  .vgrid{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.07);pointer-events:none}
+  .axis-row{margin-top:6px}
+  .axis-track{flex:1;position:relative;height:14px}
+  .axis-tick{position:absolute;top:0;font-size:10px;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+  .axis-tick::before{content:"";position:absolute;top:-5px;left:50%;width:1px;height:4px;background:var(--line)}
   .tl-seg{display:flex;align-items:center;justify-content:center;font-size:11px;color:#0b0f15;font-weight:700;white-space:nowrap;overflow:hidden}
   .tl-seg.adv{color:#e6edf3;font-weight:600;font-style:italic}
   .tc-track{flex:1;position:relative;height:38px;background:#0b0f15;border:1px solid var(--line);border-radius:6px}
@@ -389,6 +394,20 @@ DATA.players.forEach(p=>{
 
 // ---- age timeline ----
 const DUR = DATA.meta.durationSec || 1;
+// shared helpers: vertical gridlines + a time axis row (ticks every 5 min)
+function gridHTML(){let g="";for(let t=300;t<DUR;t+=300)g+=`<div class="vgrid" style="left:${t/DUR*100}%"></div>`;return g;}
+function appendTimeAxis(el){
+  const row=document.createElement("div");row.className="tl-row axis-row";
+  let ticks="";
+  // ticks every 5 min, but stop ~4 min before the end so they don't collide with the final label
+  for(let t=0;t<=DUR-240;t+=300){
+    const tf=t===0?"transform:none":"";
+    ticks+=`<div class="axis-tick" style="left:${t/DUR*100}%;${tf}">${fmt(t)}</div>`;
+  }
+  ticks+=`<div class="axis-tick" style="left:100%;transform:translateX(-100%)">${fmt(DUR)}</div>`;
+  row.innerHTML=`<div class="tl-name"></div><div class="axis-track">${ticks}</div>`;
+  el.appendChild(row);
+}
 const ageColors={Dark:"#5b6b7d",Feudal:"#e0a458",Castle:"#7d6bd6",Imperial:"#cf5b5b"};
 const tl=$("timeline");
 DATA.players.forEach(p=>{
@@ -407,9 +426,10 @@ DATA.players.forEach(p=>{
   const row=document.createElement("div"); row.className="tl-row";
   const estTag = p.agesEstimated ? ` <span class="tag">~est</span>` : "";
   row.innerHTML=`<div class="tl-name"><span class="dot" style="background:${p.color}"></span>${p.name}${estTag}</div>`+
-    `<div class="tl-bar">${segs.join("")}</div>`;
+    `<div class="tl-bar">${segs.join("")}${gridHTML()}</div>`;
   tl.appendChild(row);
 });
+appendTimeAxis(tl);
 function fmt(s){s=Math.round(s);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");}
 
 // ---- Town Centers (one bar per TC, stacked) ----
@@ -444,6 +464,7 @@ DATA.players.forEach(p=>{
     `<div class="tc-track">${grid}${bars}</div>`;
   tcWrap.appendChild(row);
 });
+appendTimeAxis(tcWrap);
 
 // ---- charts ----
 const hidden=new Set();
