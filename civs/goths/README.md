@@ -75,4 +75,20 @@ It's tempting to slam down 4-5 Town Centers and boom forever. **Don't.** Goths' 
 The Goth failure mode isn't "too few villagers" — it's "I'm 105 pop in Castle Age with 4 TCs
 and no military while the enemy hits Imperial." Get to Imperial, then let cheap units do the work.
 
+## Same opening, two builds — where they fork
+
+Both your aggressive builds share the **exact same Dark Age**: villagers non-stop, Lumber Camp
+~2:00, Mill ~4:00, lure both boars. The build is decided by **one choice around 7–8 minutes:**
+
+| | [`maa-rush/`](maa-rush/) | [`castle-drop/`](castle-drop/) |
+|---|---|---|
+| The fork (~7–8 min) | build a **Barracks** | put ~3 vils on **Stone** |
+| Villagers to Feudal | **fewer (~17–18)** — food goes to army | **more (~21–22)** — eco funds the Castle |
+| Feudal click | ~9:30–9:45 | ~10:00–10:30 |
+| What Feudal *is* | **the plan** — Man-at-Arms, **fight here** | **a hallway** — no army, rush to Castle ~14:30 |
+| The fight happens | in Feudal | after the Castle drops (~18:00) |
+
+> **One line:** same start → at ~7–8 min, **Barracks = fight in Feudal (rush)**, or **Stone = run
+> to a fast Castle and drop it (drop)**. Fewer vils for the rush, more for the drop.
+
 See: [`maa-rush/`](maa-rush/) ◄ *the go-to, step-by-step*, [`feudal-rush/`](feudal-rush/), [`castle-drop/`](castle-drop/) ◄ *your 2023 signature*, [`fast-castle/`](fast-castle/), [`team-imperial/`](team-imperial/).
