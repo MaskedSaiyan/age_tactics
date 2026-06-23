@@ -51,6 +51,11 @@ yet, so those still show `unknown`.
 # This is the one to run — you don't have to remember the others.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record
 
+# Interactive HTML report (charts, age timeline, head-to-head, key events).
+# Self-contained single file — works offline, double-click to open, shareable.
+python -m aoe2_analyzer report                      # newest in ./samples
+python -m aoe2_analyzer report game.aoe2record --open   # write + open in browser
+
 # Drop a new replay into ./samples and just run it — no path needed.
 # `analyze` (and `progression`) auto-pick the NEWEST .aoe2record:
 python -m aoe2_analyzer analyze              # newest in ./samples

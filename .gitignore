@@ -23,3 +23,6 @@ env/
 # Personal replays dropped into samples/ — keep only the test fixture.
 analyzer/samples/*.aoe2record
 !analyzer/samples/rec.aoe2record
+
+# Generated HTML reports (artifacts of `aoe report`).
+*.html

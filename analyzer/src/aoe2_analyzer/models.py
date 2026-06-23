@@ -62,6 +62,20 @@ class IdleGap:
 
 
 @dataclass
+class NotableEvent:
+    """A non-production event worth marking on a timeline.
+
+    `kind` is the raw action name we surface as a 'what went wrong' signal:
+    "RESIGN" (game decided), "DE_RETREAT" (army pulled back), "DELETE" (player
+    removed their own unit/building). Times are seconds from game start.
+    """
+
+    game_time: float
+    kind: str
+    player_id: int
+
+
+@dataclass
 class UnitCommand:
     """One command issued to a specific unit (by its object id).
 
@@ -155,6 +169,9 @@ class ReplaySummary:
     unit_owner: dict[int, int] = field(default_factory=dict)
     # Object ids that issued a BUILD command (builders == villagers).
     builder_ids: set[int] = field(default_factory=set)
+
+    # Notable non-production events (resign / retreat / delete) on the timeline.
+    notable_events: list["NotableEvent"] = field(default_factory=list)
 
     # Human-readable caveats about what could / couldn't be extracted.
     notes: list[str] = field(default_factory=list)

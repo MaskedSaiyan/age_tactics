@@ -42,10 +42,14 @@ from .models import (
     AgeTiming,
     BuildOrderEvent,
     IdleGap,
+    NotableEvent,
     PlayerSummary,
     ReplaySummary,
     UnitCommand,
 )
+
+# Non-production actions we surface as 'what went wrong' timeline markers.
+NOTABLE_ACTIONS = {"RESIGN", "DE_RETREAT", "DELETE"}
 
 # Action types whose `object_ids` are the acting units (so we can follow a unit).
 # Excludes production/rally ops (MAKE/DE_QUEUE/RESEARCH/GATHER_POINT) whose
@@ -141,6 +145,7 @@ def _parse_real(path: str) -> ReplaySummary:
     builder_ids: set[int] = set()
     # player_id -> drop-off buildings for resource inference: (time, x, y, res).
     dropoffs: dict[int, list[tuple]] = {}
+    notable: list[NotableEvent] = []
 
     def add_event(pid: int, t_sec: float, kind: str, name: str, count: int = 1) -> None:
         events.setdefault(pid, []).append(BuildOrderEvent(t_sec, kind, name, count))
@@ -199,6 +204,9 @@ def _parse_real(path: str) -> ReplaySummary:
                         tc_events.setdefault(pid, []).append(
                             (t_sec, objs, "age", AGE_RESEARCH_SECONDS[age])
                         )
+
+                if name in NOTABLE_ACTIONS:
+                    notable.append(NotableEvent(game_time=t_sec, kind=name, player_id=pid))
 
                 # Per-unit command log: record this command against each acting
                 # unit's object id, so an individual villager can be followed.
@@ -259,6 +267,7 @@ def _parse_real(path: str) -> ReplaySummary:
         unit_commands=unit_commands,
         unit_owner=unit_owner,
         builder_ids=builder_ids,
+        notable_events=notable,
         notes=[
             "Age CLICK times are read directly from the command stream (real). "
             "ARRIVAL times are estimated as click + standard research duration "
