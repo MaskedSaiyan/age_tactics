@@ -108,6 +108,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     serve.add_argument("--port", type=int, default=8000, help="Port (default: 8000).")
     serve.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1).")
+    serve.add_argument("--lan", action="store_true",
+                       help="Bind to 0.0.0.0 so other devices on your network can open it.")
     serve.add_argument("--open", action="store_true", dest="open_browser",
                        help="Open the app in the browser once it's up.")
     serve.add_argument(
@@ -423,11 +425,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(f"error: not a folder: {folder}", file=sys.stderr)
             return 1
         from .server import serve as serve_app
+        host = "0.0.0.0" if args.lan else args.host
         if args.open_browser:
-            url = f"http://{args.host}:{args.port}/"
+            url = f"http://127.0.0.1:{args.port}/"
             import threading
             threading.Timer(0.8, lambda: _open_in_browser(url)).start()
-        serve_app(folder, host=args.host, port=args.port, min_games=args.min_games)
+        serve_app(folder, host=host, port=args.port, min_games=args.min_games)
         return 0
 
     if args.command == "progression":

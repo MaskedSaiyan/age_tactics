@@ -159,13 +159,45 @@ def make_handler(folder: str, min_games: int | None):
     return Handler
 
 
+def _lan_ip() -> str | None:
+    """Best-effort primary LAN IP of this machine (no packets are sent)."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except OSError:
+        return None
+
+
+def _is_wsl() -> bool:
+    try:
+        with open("/proc/version") as fh:
+            return "microsoft" in fh.read().lower()
+    except OSError:
+        return False
+
+
 def serve(folder: str, host: str = "127.0.0.1", port: int = 8000,
           min_games: int | None = None) -> None:
     folder = os.path.abspath(folder)
     httpd = ThreadingHTTPServer((host, port), make_handler(folder, min_games))
-    url = f"http://{host}:{port}/"
     print(f"Serving replays from {folder}")
-    print(f"Open:  {url}   (Ctrl-C to stop)")
+    print(f"Local:    http://127.0.0.1:{port}/")
+    if host == "0.0.0.0":
+        ip = _lan_ip()
+        if ip:
+            print(f"Network:  http://{ip}:{port}/   (other devices on the same Wi-Fi/LAN)")
+        if _is_wsl():
+            print("\n⚠ WSL2: other devices reach your WINDOWS host, not WSL directly.")
+            print("  To forward the port, run ONCE in an admin PowerShell on Windows:")
+            print(f"    netsh interface portproxy add v4tov4 listenport={port} "
+                  f"listenaddress=0.0.0.0 connectport={port} connectaddress={ip or '<wsl-ip>'}")
+            print("    (allow it through the Windows Firewall if prompted)")
+            print(f"  Then open  http://<your-windows-LAN-IP>:{port}/  on the other device.")
+    print("\nCtrl-C to stop")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
