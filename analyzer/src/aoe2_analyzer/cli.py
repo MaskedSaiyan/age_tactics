@@ -179,23 +179,25 @@ def _newest_replay(folder: str) -> Optional[str]:
     return max(files, key=os.path.getmtime)
 
 
-def _resolve_replay(arg: Optional[str], default_dir: str = "samples") -> Optional[str]:
+def _resolve_replay(arg: Optional[str], default_dir: Optional[str] = None) -> Optional[str]:
     """Turn a file / folder / omitted arg into a concrete replay path.
 
     - a file path  -> itself
     - a folder     -> its newest .aoe2record
-    - omitted/None -> the newest .aoe2record in ./samples
+    - omitted/None -> the newest .aoe2record in the default folder
+                      ($AOE2_SAMPLES_DIR if set, else ./samples)
 
     Prints which file was auto-picked so the choice is never a surprise.
     """
+    if default_dir is None:
+        default_dir = os.environ.get("AOE2_SAMPLES_DIR", "samples")
     target = arg if arg is not None else default_dir
     if os.path.isdir(target):
         newest = _newest_replay(target)
         if newest is None:
             print(f"error: no .aoe2record files in '{target}'.", file=sys.stderr)
             return None
-        where = "newest replay" + (f" in {target}" if arg is not None else f" in ./{default_dir}")
-        print(f"Using {where}: {os.path.basename(newest)}\n")
+        print(f"Using newest replay in {target}: {os.path.basename(newest)}\n")
         return newest
     if arg is None:
         print(f"error: no '{default_dir}' folder here; pass a replay path.", file=sys.stderr)
@@ -333,7 +335,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
 
     if args.command == "versus":
-        summary = _load(args.replay)
+        replay = _resolve_replay(args.replay)
+        if replay is None:
+            return 1
+        summary = _load(replay)
         if summary is None:
             return 1
         matchup_players: list = []
