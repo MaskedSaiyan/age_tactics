@@ -281,6 +281,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .legend span.off{opacity:.32;text-decoration:line-through}
   .ptoggle{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;user-select:none}
   .ptoggle input{cursor:pointer;accent-color:var(--accent)}
+  #playertoggle{position:sticky;top:0;z-index:30;background:var(--bg);padding:9px 0;margin-top:0;
+    border-bottom:1px solid var(--line);box-shadow:0 6px 12px -8px rgba(0,0,0,.6)}
   .chart{width:100%;height:260px;touch-action:none}
   .charts{display:grid;grid-template-columns:1fr;gap:18px}
   .ev-strip{position:relative;height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;background:#0b0f15}
@@ -295,7 +297,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .bo .age{color:#06d6a0;font-weight:700;border-top:1px solid var(--line);margin-top:4px;padding-top:4px}
   .bo .mil{color:#ff8f8f} .bo .vill{color:#cfe3ff} .bo .building{color:#9fb3c8}
   .tip{position:fixed;pointer-events:none;background:#0b0f15;border:1px solid var(--line);
-    border-radius:8px;padding:8px 10px;font-size:12px;opacity:0;transition:opacity .08s;z-index:9;
+    border-radius:8px;padding:8px 10px;font-size:12px;opacity:0;transition:opacity .08s;z-index:50;
     box-shadow:0 6px 20px rgba(0,0,0,.4);font-variant-numeric:tabular-nums}
   .foot{color:var(--muted);font-size:12px;margin-top:30px;border-top:1px solid var(--line);padding-top:12px}
   a{color:var(--accent)}
@@ -306,7 +308,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <div id="picker" style="margin-bottom:14px"></div>
   <h1 id="title"></h1>
   <div class="sub" id="meta"></div>
-  <div id="playertoggle" class="legend" style="margin-top:10px"></div>
+  <div id="playertoggle" class="legend"></div>
 
   <h2>Comparación</h2>
   <div class="cards" id="cards"></div>
