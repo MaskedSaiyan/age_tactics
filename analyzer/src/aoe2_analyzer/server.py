@@ -22,19 +22,20 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from .parser import ReplayParseError, parse_replay, quick_identify
+from .report import dated_filename
 from .webreport import build_html
 
+_DATED_RE = re.compile(r"(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})_(.*?)(?:_(\d+m))?$")
 
-def _label(path: str) -> str:
-    """A clean dropdown label from a dated replay filename.
 
-    'YYYY-MM-DD-HHMM_a-vs-b_47m'  ->  'YYYY-MM-DD HH:MM  ·  a vs b  ·  47m'.
-    Falls back to the raw stem for non-standard names.
+def _format_stem(stem: str) -> str | None:
+    """'YYYY-MM-DD-HHMM_a-vs-b_47m' -> 'YYYY-MM-DD HH:MM  ·  a vs b  ·  47m'.
+
+    Returns None if the stem isn't in the dated build-order format.
     """
-    base = os.path.splitext(os.path.basename(path))[0]
-    m = re.match(r"(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})_(.*?)(?:_(\d+m))?$", base)
+    m = _DATED_RE.match(stem)
     if not m:
-        return base
+        return None
     date, hh, mm, mid, dur = m.groups()
     parts = [f"{date} {hh}:{mm}", mid.replace("-vs-", " vs ")]
     if dur:
@@ -67,6 +68,27 @@ def make_handler(folder: str, min_games: int | None):
         name_cache[path] = (mtime, names)
         return names
 
+    label_cache: dict[str, tuple[float, str]] = {}  # path -> (mtime, label)
+
+    def label_of(path: str) -> str:
+        """Fast label from the filename; only un-formatted files get a (cached)
+        full parse so a raw name like 'MP Replay v101…' still reads as the match."""
+        stem = os.path.splitext(os.path.basename(path))[0]
+        nice = _format_stem(stem)
+        if nice is not None:
+            return nice
+        mtime = os.path.getmtime(path)
+        hit = label_cache.get(path)
+        if hit and hit[0] == mtime:
+            return hit[1]
+        try:
+            synth = os.path.splitext(dated_filename(path, load(path), mtime))[0]
+            label = _format_stem(synth) or stem
+        except ReplayParseError:
+            label = stem
+        label_cache[path] = (mtime, label)
+        return label
+
     def index():
         """(games newest-first with their regular players, sorted player filter)."""
         files = sorted(glob.glob(os.path.join(folder, "*.aoe2record")),
@@ -85,7 +107,7 @@ def make_handler(folder: str, min_games: int | None):
         }
         games = [{
             "file": os.path.basename(f),
-            "label": _label(f),
+            "label": label_of(f),
             "players": [n for n in per_game[f] if n in regulars],
         } for f in files]
         player_filter = sorted(regulars, key=lambda n: (-freq[n], n.lower()))
