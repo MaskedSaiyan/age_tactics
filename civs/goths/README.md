@@ -83,7 +83,7 @@ Both your aggressive builds share the **exact same Dark Age**: villagers non-sto
 | | [`maa-rush/`](maa-rush/) | [`castle-drop/`](castle-drop/) |
 |---|---|---|
 | The fork (~7–8 min) | build a **Barracks** | put ~3 vils on **Stone** |
-| Villagers to Feudal | **fewer (~17–18)** — food goes to army | **more (~21–22)** — eco funds the Castle |
+| Villagers to Feudal | **fewer (~17–18)** — food goes to army | **more (~27)** — eco funds the fast Castle + stone |
 | Feudal click | ~9:30–9:45 | ~10:00–10:30 |
 | What Feudal *is* | **the plan** — Man-at-Arms, **fight here** | **a hallway** — no army, rush to Castle ~14:30 |
 | The fight happens | in Feudal | after the Castle drops (~18:00) |

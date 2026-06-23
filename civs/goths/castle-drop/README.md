@@ -66,15 +66,15 @@ fancy army, you need *a lot of cheap one*, and a forward Castle is a faucet that
 
 **`10–13` Food / Stone** — **Mill** on berries, and **put ~3 on stone** (Mining Camp) — this is what funds the drop.
 
-**Click Feudal ~10:24.** Loom in, keep mining stone.
+> **▶ Click Feudal ~10:24 at ~27 villagers.** Heavier than the rush — the eco funds the fast Castle + stone. Loom in, keep mining stone.
 
 ### 🏰 Feudal → Castle (~14:33)
 
-- Keep **3–4 on stone** the whole way — aim for **~650 stone banked** as you hit Castle.
-- **Blacksmith** (~13:00) so your infantry actually bite.
+- **Market + Blacksmith** on reaching Feudal — Market to buy/sell stone if you're short, Blacksmith for infantry upgrades.
+- **Approaching Castle (~30 vils): STOP making villagers and shift food → stone.** That production pause *is* the castle drop — it's how you bank the **~650 stone** in time.
 - Farms seeded so food doesn't gap during the push.
 
-> **▶ Click Castle ~14:30 with stone ready.**
+> **▶ Click Castle ~14:30 (<15 min) with stone ready.** *(This is real — your 2023 games hit 14:33.)*
 
 ### ⚔️🏰 The Drop (~18:00)
 
