@@ -265,6 +265,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:6px 0 10px}
   .legend span{cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;user-select:none;opacity:1}
   .legend span.off{opacity:.32;text-decoration:line-through}
+  .ptoggle{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;user-select:none}
+  .ptoggle input{cursor:pointer;accent-color:var(--accent)}
   .chart{width:100%;height:260px;touch-action:none}
   .charts{display:grid;grid-template-columns:1fr;gap:18px}
   .ev-strip{position:relative;height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;background:#0b0f15}
@@ -290,6 +292,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <div id="picker" style="margin-bottom:14px"></div>
   <h1 id="title"></h1>
   <div class="sub" id="meta"></div>
+  <div id="playertoggle" class="legend" style="margin-top:10px"></div>
 
   <h2>Comparación</h2>
   <div class="cards" id="cards"></div>
@@ -414,7 +417,7 @@ METRICS.forEach(([k,,low])=>{
 const cards = $("cards");
 DATA.players.forEach(p=>{
   const m=p.metrics;
-  const card=document.createElement("div"); card.className="card";
+  const card=document.createElement("div"); card.className="card"; card.dataset.player=p.name;
   card.innerHTML = `<h3><span class="dot" style="background:${p.color}"></span>${p.name}`+
     (p.isAI?` <span class="tag">IA</span>`:``)+`</h3>`+
     METRICS.map(([k,lab])=>{
@@ -494,7 +497,7 @@ DATA.players.forEach(p=>{
     return `<div class="tl-seg" style="width:${w}%;background:${col};color:#0b0f15" `+
            `title="${s.age}: ${fmt(s.start)}→${fmt(s.end)}">${w>9?s.age:""}</div>`;
   });
-  const row=document.createElement("div"); row.className="tl-row";
+  const row=document.createElement("div"); row.className="tl-row"; row.dataset.player=p.name;
   const estTag = p.agesEstimated ? ` <span class="tag">~est</span>` : "";
   row.innerHTML=`<div class="tl-name"><span class="dot" style="background:${p.color}"></span>${p.name}${estTag}</div>`+
     `<div class="tl-bar">${segs.join("")}${gridHTML()}</div>`;
@@ -528,7 +531,7 @@ DATA.players.forEach(p=>{
     if(s.l>cursor) html+=seg(cursor,s.l);
     return html;
   }).join("");
-  const row=document.createElement("div");row.className="tl-row";
+  const row=document.createElement("div");row.className="tl-row";row.dataset.player=p.name;
   const tag = spans.length
     ? `<span class="tag">${spans.length} TC</span> <span class="tag" style="color:#ffb454">idle ${fmt(idleTotal)}</span>`
     : `<span class="tag">— sin datos${p.isAI?" (IA)":""}</span>`;
@@ -551,7 +554,7 @@ KEY_BUILDINGS.forEach(bn=>{
     const times=p.buildings&&p.buildings[bn]; if(!times||!times.length)return;
     times.forEach((t,k)=>{
       const cls = k===0 ? "bld-mark first" : "bld-mark";  // first one emphasised
-      marks+=`<div class="${cls}" style="left:${t/DUR*100}%;top:${5+pi*6}px;background:${p.color}" `+
+      marks+=`<div class="${cls}" data-player="${p.name}" style="left:${t/DUR*100}%;top:${5+pi*6}px;background:${p.color}" `+
              `title="${p.name}: ${bn} #${k+1} a ${fmt(t)}"></div>`;
     });
   });
@@ -605,19 +608,35 @@ function drawChart(svgId, key){
 }
 function drawAll(){SERIES.forEach(k=>drawChart("c_"+k,k));}
 
-// legend (toggle players)
-const lg=$("legend");
-DATA.players.forEach(p=>{const s=document.createElement("span");
-  s.innerHTML=`<span class="dot" style="background:${p.color}"></span>${p.name}`+(p.isAI?" (IA)":"");
-  s.onclick=()=>{if(hidden.has(p.name))hidden.delete(p.name);else hidden.add(p.name);
-    s.classList.toggle("off");drawAll();};
-  lg.appendChild(s);});
+// global player toggle — checkboxes that show/hide a player across EVERY section
+function applyVisibility(){
+  document.querySelectorAll("[data-player]").forEach(el=>{
+    el.style.display = hidden.has(el.getAttribute("data-player")) ? "none" : "";
+  });
+  document.querySelectorAll(".ptoggle input").forEach(cb=>{ cb.checked=!hidden.has(cb.value); });
+  drawAll();
+}
+function renderToggles(container){
+  if(!container) return; container.innerHTML="";
+  if(container.id==="playertoggle")
+    container.insertAdjacentHTML("beforeend",`<span style="color:var(--muted);font-size:13px">👁 Mostrar:</span>`);
+  DATA.players.forEach(p=>{
+    const lab=document.createElement("label"); lab.className="ptoggle";
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.value=p.name; cb.checked=!hidden.has(p.name);
+    cb.onchange=()=>{ if(cb.checked)hidden.delete(p.name); else hidden.add(p.name); applyVisibility(); };
+    lab.appendChild(cb);
+    lab.insertAdjacentHTML("beforeend",`<span class="dot" style="background:${p.color}"></span>${p.name}`+(p.isAI?" (IA)":""));
+    container.appendChild(lab);
+  });
+}
+renderToggles($("playertoggle"));
+renderToggles($("legend"));
 
 // ---- events strip ----
 const ic={RESIGN:"🏳️",DE_RETREAT:"🔙",DELETE:"🗑️"};
 const es=$("events");
 DATA.events.forEach(e=>{const x=(e.t/DUR)*100;
-  const m=document.createElement("div");m.className="ev";m.style.left=x+"%";
+  const m=document.createElement("div");m.className="ev";m.style.left=x+"%";m.dataset.player=e.player;
   const col=e.kind==="RESIGN"?"#ff6b6b":e.kind==="DE_RETREAT"?"#ffd166":"#8b98a9";
   m.style.background=col;
   m.onpointerenter=(ev)=>showTip(`<b>${e.tStr}</b><br>${ic[e.kind]||""} ${e.kind} — ${e.player}`,ev.clientX,ev.clientY);
