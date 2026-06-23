@@ -98,6 +98,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Open the generated report in the browser (WSL/Linux/macOS).",
     )
 
+    serve = subparsers.add_parser(
+        "serve",
+        help="Local web app: pick any replay from a dropdown and view its report.",
+    )
+    serve.add_argument(
+        "folder", nargs="?", default=None,
+        help="Folder of replays to serve (default: ./samples or $AOE2_SAMPLES_DIR).",
+    )
+    serve.add_argument("--port", type=int, default=8000, help="Port (default: 8000).")
+    serve.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1).")
+    serve.add_argument("--open", action="store_true", dest="open_browser",
+                       help="Open the app in the browser once it's up.")
+
     progression = subparsers.add_parser(
         "progression",
         help="Cross-player timeline: who led on vills/military, minute by minute.",
@@ -230,7 +243,8 @@ def _open_in_browser(path: str) -> None:
     import shutil
     import subprocess
 
-    abspath = os.path.abspath(path)
+    # URLs (the server) are opened as-is; file paths get absolutised.
+    abspath = path if path.startswith(("http://", "https://")) else os.path.abspath(path)
     # Proper GUI openers. `open` only on macOS — on Linux it's run-mailcap (no GUI).
     openers = ["wslview", "xdg-open"]
     if sys.platform == "darwin":
@@ -244,11 +258,15 @@ def _open_in_browser(path: str) -> None:
                 return
             except OSError:
                 pass
-    # WSL fallback: hand the Windows path to explorer.exe.
+    # WSL fallback: explorer.exe opens URLs directly, but needs a Windows path
+    # for local files.
     if shutil.which("explorer.exe"):
         try:
-            win = subprocess.run(["wslpath", "-w", abspath],
-                                 capture_output=True, text=True).stdout.strip()
+            if abspath.startswith(("http://", "https://")):
+                win = abspath
+            else:
+                win = subprocess.run(["wslpath", "-w", abspath],
+                                     capture_output=True, text=True).stdout.strip()
             subprocess.Popen(["explorer.exe", win or abspath],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             print("Opening in browser (explorer.exe)…")
@@ -392,6 +410,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             _open_in_browser(out)
         else:
             print(f"Open it with:  xdg-open {shlex.quote(out)}")
+        return 0
+
+    if args.command == "serve":
+        folder = args.folder or os.environ.get("AOE2_SAMPLES_DIR", "samples")
+        if not os.path.isdir(folder):
+            print(f"error: not a folder: {folder}", file=sys.stderr)
+            return 1
+        from .server import serve as serve_app
+        if args.open_browser:
+            url = f"http://{args.host}:{args.port}/"
+            import threading
+            threading.Timer(0.8, lambda: _open_in_browser(url)).start()
+        serve_app(folder, host=args.host, port=args.port)
         return 0
 
     if args.command == "progression":

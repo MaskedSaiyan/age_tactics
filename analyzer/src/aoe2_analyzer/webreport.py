@@ -152,11 +152,20 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
     }
 
 
-def build_html(summary: ReplaySummary, step: int = 20) -> str:
+def build_html(
+    summary: ReplaySummary,
+    step: int = 20,
+    games: list[dict] | None = None,
+    selected: str | None = None,
+) -> str:
+    """Render the report. `games` (list of {file,label}) + `selected` power the
+    server's game picker; omit them for a standalone single-game file."""
     duration = summary.game_duration_seconds or 0
     players = summary.players
     name_by_pid = {p.player_id: p.name for p in players}
     data = {
+        "games": games or [],
+        "selected": selected,
         "meta": {
             "matchup": " vs ".join(p.name for p in players) or "unknown",
             "version": summary.game_version or "unknown",
@@ -235,6 +244,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
+  <div id="picker" style="margin-bottom:14px"></div>
   <h1 id="title"></h1>
   <div class="sub" id="meta"></div>
 
@@ -279,6 +289,19 @@ function showTip(html,x,y){tip.innerHTML=html;tip.style.opacity=1;
   tip.style.left=Math.min(x+14,innerWidth-tip.offsetWidth-8)+"px";
   tip.style.top=(y+14)+"px";}
 function hideTip(){tip.style.opacity=0;}
+
+// ---- game picker (only on the server, when >1 game is available) ----
+if(DATA.games && DATA.games.length){
+  const sel=document.createElement("select");
+  sel.style.cssText="background:#1a2230;color:#e6edf3;border:1px solid #2c3a4d;"+
+    "border-radius:8px;padding:8px 10px;font-size:14px;max-width:100%;min-width:320px";
+  DATA.games.forEach(g=>{const o=document.createElement("option");
+    o.value=g.file;o.textContent=g.label;if(g.file===DATA.selected)o.selected=true;sel.appendChild(o);});
+  sel.onchange=()=>{location.search="?game="+encodeURIComponent(sel.value);};
+  const lab=document.createElement("span");
+  lab.textContent="Partida: ";lab.style.cssText="color:#8b98a9;font-size:13px;margin-right:8px";
+  $("picker").appendChild(lab);$("picker").appendChild(sel);
+}
 
 // ---- header ----
 $("title").textContent = "🏹 " + DATA.meta.matchup;

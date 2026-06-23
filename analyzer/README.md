@@ -51,6 +51,10 @@ yet, so those still show `unknown`.
 # This is the one to run — you don't have to remember the others.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record
 
+# Local web app: a dropdown to pick ANY replay in the folder, then view its
+# interactive report. Stdlib http.server, no install. Ctrl-C to stop.
+python -m aoe2_analyzer serve --open            # serves ./samples on :8000
+
 # Interactive HTML report (charts, age timeline, head-to-head, key events).
 # Self-contained single file — works offline, double-click to open, shareable.
 python -m aoe2_analyzer report                      # newest in ./samples
