@@ -191,6 +191,16 @@ def _format_tc_idle(p: PlayerSummary, top_gaps: int = 5) -> list[str]:
     return out
 
 
+def _cum_idle(gaps: list, cutoff: float) -> float:
+    """Total main-TC idle seconds up to `cutoff` (a gap straddling it counts partly)."""
+    total = 0.0
+    for g in gaps:
+        if g.start >= cutoff:
+            continue
+        total += min(g.seconds, cutoff - g.start)
+    return total
+
+
 def format_progression(summary: ReplaySummary, step_seconds: int = 180) -> str:
     """Cross-player timeline: cumulative villagers & military at each time mark.
 
@@ -221,6 +231,18 @@ def format_progression(summary: ReplaySummary, step_seconds: int = 180) -> str:
             rows.append(f"  {_fmt_time(t)} | " + " ".join(cells))
         return rows
 
+    def idle_table() -> list[str]:
+        rows = ["  TC IDLE over time (cumulative, mm:ss not training):", header]
+        for t in marks:
+            cells = []
+            for p in players:
+                if p.main_tc_id is None:  # AI / no modelled TC — not measured, not zero
+                    cells.append(f"{'—':>9s}")
+                else:
+                    cells.append(f"{_fmt_time(_cum_idle(p.main_tc_idle_gaps, t)):>9s}")
+            rows.append(f"  {_fmt_time(t)} | " + " ".join(cells))
+        return rows
+
     out = ["=" * 60, "PROGRESSION — cumulative by time (queued)", "=" * 60]
     out.append("Age clicks:")
     for p in players:
@@ -237,8 +259,12 @@ def format_progression(summary: ReplaySummary, step_seconds: int = 180) -> str:
     out.append("")
     out.extend(table("MILITARY over time:", military=True))
     out.append("")
-    out.append("(Counts are cumulative units queued — totals inflate late as AIs")
-    out.append(" keep producing; what matters is who led at each time mark.)")
+    out.extend(idle_table())
+    out.append("")
+    out.append("(Vill/military are cumulative units QUEUED — not alive; they exclude")
+    out.append(" the free starting 3 vills + scout, and totals inflate late as AIs")
+    out.append(" keep producing. TC idle is the main TC's lost training time so far —")
+    out.append(" lower is better; a climbing column is economy bleeding out.)")
     return "\n".join(out) + "\n"
 
 
@@ -249,10 +275,27 @@ def format_build_order(p: PlayerSummary) -> str:
         lines.append("(no build-order events — likely an AI player)")
         return "\n".join(lines) + "\n"
 
+    # Idle gaps of the main TC, woven into the timeline at the moment they start
+    # so you can see exactly which villager-clicks were missed (and where).
+    idle = sorted(p.main_tc_idle_gaps, key=lambda g: g.start)
+    gi = 0
+
+    def flush_idle(until: float) -> None:
+        nonlocal gi
+        while gi < len(idle) and idle[gi].start <= until:
+            g = idle[gi]
+            lost = g.seconds / 25.0
+            lines.append(
+                f"  {_fmt_time(g.start)}  ⏳ TC idle {_fmt_time(g.seconds)}"
+                f"  (≈ {lost:.1f} vill{'s' if lost >= 2 else ''} missed)"
+            )
+            gi += 1
+
     current_age = "Dark Age"
     lines.append(f"[{current_age}]")
     vill_no = 0
     for e in p.build_order:
+        flush_idle(e.game_time)
         if e.kind == "age":
             current_age = e.name
             lines.append("")
@@ -274,6 +317,7 @@ def format_build_order(p: PlayerSummary) -> str:
         icon = "👤" if e.name == "Villager" else "⚔️ "
         lines.append(f"  {_fmt_time(e.game_time)}  {icon} {label}")
 
+    flush_idle(float("inf"))
     return "\n".join(lines) + "\n"
 
 
