@@ -211,7 +211,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .wrap{max-width:1100px;margin:0 auto;padding:24px 18px 80px}
   h1{font-size:24px;margin:0 0 2px} h2{font-size:18px;margin:34px 0 12px}
   .sub{color:var(--muted);font-size:13px;margin-bottom:6px}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;position:relative}
+  .hline{position:absolute;top:10px;bottom:10px;width:1px;background:rgba(230,237,243,.55);pointer-events:none;display:none;z-index:5}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
   .card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
@@ -396,6 +397,43 @@ DATA.players.forEach(p=>{
 const DUR = DATA.meta.durationSec || 1;
 // shared helpers: vertical gridlines + a time axis row (ticks every 5 min)
 function gridHTML(){let g="";for(let t=300;t<DUR;t+=300)g+=`<div class="vgrid" style="left:${t/DUR*100}%"></div>`;return g;}
+// vertical mouse line + contextual tooltip over a bar panel (like the charts)
+function addHoverLine(panel, labelFn){
+  const line=document.createElement("div");line.className="hline";panel.appendChild(line);
+  panel.addEventListener("pointermove",ev=>{
+    const track=panel.querySelector(".tl-bar,.tc-track");
+    if(!track){return;}
+    const tr=track.getBoundingClientRect(), pr=panel.getBoundingClientRect();
+    if(ev.clientX<tr.left||ev.clientX>tr.right){line.style.display="none";hideTip();return;}
+    const t=(ev.clientX-tr.left)/tr.width*DUR;
+    line.style.display="block"; line.style.left=(ev.clientX-pr.left)+"px";
+    showTip(`<b>${fmt(t)}</b>${labelFn(t)}`, ev.clientX, ev.clientY);
+  });
+  panel.addEventListener("pointerleave",()=>{line.style.display="none";hideTip();});
+}
+function ageAt(t){
+  let s="";
+  DATA.players.forEach(p=>{
+    const segs=p.timeline||[]; if(!segs.length)return;
+    let cur=segs.find(g=>t>=g.start&&t<g.end);
+    if(!cur && t>=segs[segs.length-1].start) cur=segs[segs.length-1];
+    if(cur){const lbl=cur.kind==="adv"?`▸ subiendo a ${cur.age}`:cur.age;
+      s+=`<br><span style="color:${p.color}">●</span> ${p.name}: ${lbl}`;}
+  });
+  return s;
+}
+function tcsAt(t){
+  let s="";
+  DATA.players.forEach(p=>{
+    const spans=p.tcSpans||[]; if(!spans.length)return;
+    let active=0, producing=0;
+    spans.forEach(x=>{ if(t<x.f||t>x.l)return; active++;
+      let idle=false; for(const g of (x.gaps||[])){if(t>=g[0]&&t<g[0]+g[1]){idle=true;break;}}
+      if(!idle)producing++; });
+    s+=`<br><span style="color:${p.color}">●</span> ${p.name}: <b>${producing}</b>/${active} TC produciendo`;
+  });
+  return s;
+}
 function appendTimeAxis(el){
   const row=document.createElement("div");row.className="tl-row axis-row";
   let ticks="";
@@ -430,6 +468,7 @@ DATA.players.forEach(p=>{
   tl.appendChild(row);
 });
 appendTimeAxis(tl);
+addHoverLine(tl, ageAt);
 function fmt(s){s=Math.round(s);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");}
 
 // ---- Town Centers (one bar per TC, stacked) ----
@@ -465,6 +504,7 @@ DATA.players.forEach(p=>{
   tcWrap.appendChild(row);
 });
 appendTimeAxis(tcWrap);
+addHoverLine(tcWrap, tcsAt);
 
 // ---- charts ----
 const hidden=new Set();
