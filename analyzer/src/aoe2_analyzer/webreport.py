@@ -78,6 +78,34 @@ def _build_order_rows(p: PlayerSummary) -> list[dict]:
     return rows
 
 
+def _age_segments(p: PlayerSummary, duration: float) -> list[dict]:
+    """Timeline segments: time spent IN each age, plus an 'advancing' sliver
+    between the age-up CLICK and the (estimated) ARRIVAL — so the bar shows both
+    when you decided to advance and when you were actually in the new age.
+    """
+    ages = []
+    for name in _AGE_ORDER[1:]:  # Feudal, Castle, Imperial
+        a = p.age(name)
+        if a and a.click_time is not None:
+            arrival = a.arrival_time if a.arrival_time is not None else a.click_time
+            ages.append((name, a.click_time, arrival))
+
+    segs: list[dict] = []
+    cursor = 0.0
+    current = "Dark"
+    for name, click, arrival in ages:
+        if click > cursor:
+            segs.append({"age": current, "kind": "in", "start": cursor, "end": click})
+        end_adv = min(arrival, duration)
+        if end_adv > click:
+            segs.append({"age": name, "kind": "adv", "start": click, "end": end_adv})
+        cursor = max(cursor, end_adv)
+        current = name
+    if duration > cursor:
+        segs.append({"age": current, "kind": "in", "start": cursor, "end": duration})
+    return segs
+
+
 def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> dict:
     marks = list(range(0, int(duration) + step, step))
     vills, mil, idle = [], [], []
@@ -108,6 +136,7 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
         "isAI": _is_ai(p),
         "agesEstimated": _ages_estimated(p),
         "ages": {a: click(a) for a in _AGE_ORDER[1:]},
+        "timeline": _age_segments(p, duration),
         "series": {"villagers": vills, "military": mil, "idle": None if _is_ai(p) else idle},
         "metrics": {
             "feudal": age_str("Feudal"),
@@ -180,6 +209,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .tl-name{width:130px;flex:0 0 auto;font-size:13px;display:flex;align-items:center;gap:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tl-bar{flex:1;height:26px;border-radius:6px;overflow:hidden;display:flex;background:#0b0f15;border:1px solid var(--line)}
   .tl-seg{display:flex;align-items:center;justify-content:center;font-size:11px;color:#0b0f15;font-weight:700;white-space:nowrap;overflow:hidden}
+  .tl-seg.adv{color:#e6edf3;font-weight:600;font-style:italic}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:6px 0 10px}
   .legend span{cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;user-select:none;opacity:1}
   .legend span.off{opacity:.32;text-decoration:line-through}
@@ -212,6 +242,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <div class="cards" id="cards"></div>
 
   <h2>Línea de edades</h2>
+  <div class="sub">Color sólido = <b>en la era</b> · rayado <i>▸ subiendo</i> = <b>avanzando</b> (del click a la llegada ~estimada)</div>
   <div class="panel" id="timeline"></div>
 
   <h2>Progresión</h2>
@@ -293,15 +324,17 @@ const DUR = DATA.meta.durationSec || 1;
 const ageColors={Dark:"#5b6b7d",Feudal:"#e0a458",Castle:"#7d6bd6",Imperial:"#cf5b5b"};
 const tl=$("timeline");
 DATA.players.forEach(p=>{
-  const f=p.ages.Feudal, c=p.ages.Castle, i=p.ages.Imperial;
-  const segs=[];
-  let prev=0;
-  const bounds=[["Dark",0,f??DUR],["Feudal",f,c??DUR],["Castle",c,i??DUR],["Imperial",i,DUR]];
-  bounds.forEach(([nm,st,en])=>{
-    if(st===null||st===undefined) return;
-    const w=Math.max(0,(en-st))/DUR*100;
-    if(w<=0) return;
-    segs.push(`<div class="tl-seg" style="width:${w}%;background:${ageColors[nm]}" title="${nm}: ${fmt(st)}→${fmt(en)}">${w>9?nm:""}</div>`);
+  const segs=(p.timeline||[]).map(s=>{
+    const w=Math.max(0,(s.end-s.start))/DUR*100; if(w<=0) return "";
+    const col=ageColors[s.age]||"#5b6b7d";
+    if(s.kind==="adv"){
+      // "avanzando": diagonal stripes of the target age colour
+      const bg=`repeating-linear-gradient(45deg,${col} 0 5px,#0b0f15 5px 10px)`;
+      return `<div class="tl-seg adv" style="width:${w}%;background:${bg}" `+
+             `title="Avanzando a ${s.age}: ${fmt(s.start)}→${fmt(s.end)} (subiendo)">${w>11?"▸ subiendo":""}</div>`;
+    }
+    return `<div class="tl-seg" style="width:${w}%;background:${col};color:#0b0f15" `+
+           `title="${s.age}: ${fmt(s.start)}→${fmt(s.end)}">${w>9?s.age:""}</div>`;
   });
   const row=document.createElement("div"); row.className="tl-row";
   const estTag = p.agesEstimated ? ` <span class="tag">~est</span>` : "";
