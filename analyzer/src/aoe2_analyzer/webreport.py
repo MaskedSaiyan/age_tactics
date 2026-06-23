@@ -106,21 +106,17 @@ def _age_segments(p: PlayerSummary, duration: float) -> list[dict]:
     return segs
 
 
-def _first_buildings(p: PlayerSummary) -> dict:
-    """{building name: {first: secs, count: n}} — first placement of each type.
+def _building_times(p: PlayerSummary) -> dict:
+    """{building name: [secs, secs, ...]} — EVERY placement time of each type.
 
-    Skips unknown ids (`Building #NNN`). Build order is chronological, so the
-    first time we see a name is its earliest placement.
+    Skips unknown ids (`Building #NNN`). Build order is chronological, so each
+    list is already sorted (its first entry is the earliest placement).
     """
-    out: dict[str, dict] = {}
+    out: dict[str, list] = {}
     for e in p.build_order:
         if e.kind != "building" or e.name.startswith("Building #"):
             continue
-        b = out.get(e.name)
-        if b is None:
-            out[e.name] = {"first": round(e.game_time), "count": e.count}
-        else:
-            b["count"] += e.count
+        out.setdefault(e.name, []).extend([round(e.game_time)] * max(1, e.count))
     return out
 
 
@@ -166,7 +162,7 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
                      "idle": round(tc.idle_seconds),
                      "gaps": [[round(g.start), round(g.seconds)] for g in tc.idle_gaps]}
                     for tc in p.town_centers],
-        "buildings": _first_buildings(p),
+        "buildings": _building_times(p),
         "series": {"villagers": vills, "military": mil, "idle": None if _is_ai(p) else idle},
         "metrics": {
             "feudal": age_str("Feudal"),
@@ -261,7 +257,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .tl-seg{display:flex;align-items:center;justify-content:center;font-size:11px;color:#0b0f15;font-weight:700;white-space:nowrap;overflow:hidden}
   .tl-seg.adv{color:#e6edf3;font-weight:600;font-style:italic}
   .tc-track{flex:1;position:relative;height:38px;background:#0b0f15;border:1px solid var(--line);border-radius:6px}
-  .bld-mark{position:absolute;width:8px;height:8px;border-radius:50%;margin-left:-4px;border:1px solid #0b0f15;cursor:default}
+  .bld-mark{position:absolute;width:6px;height:6px;border-radius:50%;margin-left:-3px;margin-top:1px;opacity:.6;cursor:default}
+  .bld-mark.first{width:9px;height:9px;margin-left:-4px;margin-top:0;opacity:1;box-shadow:0 0 0 1.5px #e6edf3}
   .tc-life{position:absolute;height:4px;border-radius:2px;background:#33414f;opacity:.55}
   .tc-bar{position:absolute;height:4px;border-radius:2px;opacity:.95}
   .tc-grid{position:absolute;top:0;bottom:0;width:1px;background:#1a2430}
@@ -306,7 +303,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <div class="panel" id="tcs"></div>
 
   <h2>Construcciones — cuándo entró cada edificio</h2>
-  <div class="sub">Primer edificio de cada tipo, por jugador (un punto por jugador). De esto depende qué podías producir — p.ej. el <b>Barracks</b> marca cuándo pudiste sacar milicia.</div>
+  <div class="sub">Un punto por <b>cada</b> edificio construido (el <b>primero va resaltado</b> con borde blanco). Por jugador, en su carril. De esto depende qué podías producir — p.ej. el primer <b>Barracks</b> marca cuándo pudiste sacar milicia.</div>
   <div class="panel" id="bldtl"></div>
 
   <h2>Progresión</h2>
@@ -551,9 +548,12 @@ KEY_BUILDINGS.forEach(bn=>{
   if(!DATA.players.some(p=>p.buildings&&p.buildings[bn])) return;
   let marks="";
   DATA.players.forEach((p,pi)=>{
-    const b=p.buildings&&p.buildings[bn]; if(!b)return;
-    marks+=`<div class="bld-mark" style="left:${b.first/DUR*100}%;top:${5+pi*6}px;background:${p.color}" `+
-           `title="${p.name}: ${bn} a ${fmt(b.first)}${b.count>1?' (×'+b.count+')':''}"></div>`;
+    const times=p.buildings&&p.buildings[bn]; if(!times||!times.length)return;
+    times.forEach((t,k)=>{
+      const cls = k===0 ? "bld-mark first" : "bld-mark";  // first one emphasised
+      marks+=`<div class="${cls}" style="left:${t/DUR*100}%;top:${5+pi*6}px;background:${p.color}" `+
+             `title="${p.name}: ${bn} #${k+1} a ${fmt(t)}"></div>`;
+    });
   });
   const row=document.createElement("div");row.className="tl-row";
   row.innerHTML=`<div class="tl-name">${bn}</div><div class="tc-track">${gridHTML()}${marks}</div>`;
