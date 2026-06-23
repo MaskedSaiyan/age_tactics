@@ -137,7 +137,9 @@ def _player_data(p: PlayerSummary, color: str, duration: float, step: int) -> di
         "agesEstimated": _ages_estimated(p),
         "ages": {a: click(a) for a in _AGE_ORDER[1:]},
         "timeline": _age_segments(p, duration),
-        "tcSpans": [[round(tc.first), round(tc.last), round(tc.idle_seconds)]
+        "tcSpans": [{"f": round(tc.first), "l": round(tc.last),
+                     "idle": round(tc.idle_seconds),
+                     "gaps": [[round(g.start), round(g.seconds)] for g in tc.idle_gaps]}
                     for tc in p.town_centers],
         "series": {"villagers": vills, "military": mil, "idle": None if _is_ai(p) else idle},
         "metrics": {
@@ -225,8 +227,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .tl-seg{display:flex;align-items:center;justify-content:center;font-size:11px;color:#0b0f15;font-weight:700;white-space:nowrap;overflow:hidden}
   .tl-seg.adv{color:#e6edf3;font-weight:600;font-style:italic}
   .tc-track{flex:1;position:relative;height:38px;background:#0b0f15;border:1px solid var(--line);border-radius:6px}
-  .tc-bar{position:absolute;height:4px;border-radius:2px;opacity:.9}
-  .tc-idle{position:absolute;right:0;top:0;height:100%;background:#ff5d5d;border-radius:0 2px 2px 0;opacity:.85}
+  .tc-life{position:absolute;height:4px;border-radius:2px;background:#33414f;opacity:.55}
+  .tc-bar{position:absolute;height:4px;border-radius:2px;opacity:.95}
   .tc-grid{position:absolute;top:0;bottom:0;width:1px;background:#1a2430}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:6px 0 10px}
   .legend span{cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;user-select:none;opacity:1}
@@ -265,7 +267,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
   <div class="panel" id="timeline"></div>
 
   <h2>Centros urbanos (Town Centers)</h2>
-  <div class="sub">Cada barra = un TC en su ventana de actividad. El trozo <span style="color:#ff5d5d">rojo</span> = tiempo <b>idle</b> de ese TC. <b>Más barras = más boom; menos rojo = mejor.</b> (idle por TC; pasa el cursor para el detalle)</div>
+  <div class="sub">Cada barra = un TC. <b>Color sólido = produciendo villagers</b>; el <b>hueco gris = idle</b> (cola vacía). Más barras = más boom; menos huecos = mejor. (pasa el cursor para el idle por TC)</div>
   <div class="panel" id="tcs"></div>
 
   <h2>Progresión</h2>
@@ -419,12 +421,20 @@ DATA.players.forEach(p=>{
   for(let t=300;t<DUR;t+=300){grid+=`<div class="tc-grid" style="left:${t/DUR*100}%"></div>`;}
   let idleTotal=0;
   const bars=spans.map((s,i)=>{
-    const span=s[1]-s[0], idle=s[2]||0; idleTotal+=idle;
-    const left=s[0]/DUR*100, w=Math.max(0.5,span/DUR*100);
-    const idleW = span>0 ? Math.min(100,(idle/span)*100) : 0;  // red = idle, right-aligned
-    const redBar = idleW>0 ? `<div class="tc-idle" style="width:${idleW}%"></div>` : "";
-    return `<div class="tc-bar" style="left:${left}%;width:${w}%;top:${5+i*6}px;background:${p.color}" `+
-           `title="TC${i+1}: ${fmt(s[0])} → ${fmt(s[1])} · idle ${fmt(idle)}">${redBar}</div>`;
+    const top=5+i*6; idleTotal+=s.idle||0;
+    const pct=t=>t/DUR*100;
+    const tip=`TC${i+1}: ${fmt(s.f)} → ${fmt(s.l)} · idle ${fmt(s.idle)}`;
+    // faint base = the TC's whole lifespan (so idle shows as a gap in the colour)
+    let html=`<div class="tc-life" style="left:${pct(s.f)}%;width:${Math.max(0.5,pct(s.l-s.f))}%;top:${top}px" title="${tip}"></div>`;
+    // solid colour only while PRODUCING = lifespan minus the idle gaps
+    let cursor=s.f;
+    const seg=(a,b)=>`<div class="tc-bar" style="left:${pct(a)}%;width:${Math.max(0.5,pct(b-a))}%;top:${top}px;background:${p.color}" title="${tip}"></div>`;
+    for(const g of (s.gaps||[])){
+      if(g[0]>cursor) html+=seg(cursor,g[0]);
+      cursor=Math.max(cursor,g[0]+g[1]);
+    }
+    if(s.l>cursor) html+=seg(cursor,s.l);
+    return html;
   }).join("");
   const row=document.createElement("div");row.className="tl-row";
   const tag = spans.length

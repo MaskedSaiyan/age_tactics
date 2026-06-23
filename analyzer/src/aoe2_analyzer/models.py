@@ -90,6 +90,7 @@ class TownCenter:
     first: float
     last: float
     idle_seconds: float = 0.0  # idle in THIS TC's own production line (first→last)
+    idle_gaps: list["IdleGap"] = field(default_factory=list)  # where the idle was
 
 
 @dataclass

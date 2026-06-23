@@ -417,6 +417,7 @@ def _detect_town_centers(occupations: list[tuple]) -> list[TownCenter]:
         tcs.append(TownCenter(
             object_id=obj, first=m["first"], last=m["last"],
             idle_seconds=m["idle_total"],
+            idle_gaps=sorted(m["gaps"], key=lambda g: g.start),
         ))
     tcs.sort(key=lambda tc: tc.first)
     return tcs
