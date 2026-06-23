@@ -421,8 +421,9 @@ DATA.players.forEach(p=>{
            `title="TC${i+1}: ${fmt(s[0])} → ${fmt(s[1])}"></div>`;
   }).join("");
   const row=document.createElement("div");row.className="tl-row";
-  row.innerHTML=`<div class="tl-name"><span class="dot" style="background:${p.color}"></span>${p.name} `+
-    `<span class="tag">${spans.length} TC</span></div>`+
+  const tag = spans.length ? `<span class="tag">${spans.length} TC</span>`
+            : `<span class="tag">— sin datos${p.isAI?" (IA)":""}</span>`;
+  row.innerHTML=`<div class="tl-name"><span class="dot" style="background:${p.color}"></span>${p.name} ${tag}</div>`+
     `<div class="tc-track">${grid}${bars}</div>`;
   tcWrap.appendChild(row);
 });
