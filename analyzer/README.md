@@ -21,6 +21,9 @@ yet, so those still show `unknown`.
   (`MAKE` + `DE_QUEUE`) and building placed (`BUILD`), with age markers — i.e. Villager #1..N,
   the military, and buildings up to each age.
 - **Production by age**: cumulative villagers / military / buildings at each age click.
+- **Progression timeline**: every player's cumulative villagers and military at
+  fixed time marks (every 3 min) side by side — see *who led at each moment*,
+  not just the end-game totals (which late AI production inflates).
 - **Main Town Center idle time** (estimate): we identify the first TC (the object the
   first villager was trained from) and model its production line — training a villager
   occupies it ~25s, age-ups block it for the research time. Any gap is idle, reported as a
@@ -44,9 +47,19 @@ yet, so those still show `unknown`.
 ## Usage
 
 ```bash
-# FULL report, all sections (overview + build order + villager assignments).
+# FULL report, all sections (overview + progression + build order + assignments).
 # This is the one to run — you don't have to remember the others.
 python -m aoe2_analyzer analyze path/to/replay.aoe2record
+
+# Drop a new replay into ./samples and just run it — no path needed.
+# `analyze` (and `progression`) auto-pick the NEWEST .aoe2record:
+python -m aoe2_analyzer analyze              # newest in ./samples
+python -m aoe2_analyzer analyze some/folder  # newest in that folder
+
+# Progression only: who led on villagers / military, minute by minute.
+# (End-of-game totals mislead — AIs keep producing after they've won.)
+python -m aoe2_analyzer progression                 # newest in ./samples
+python -m aoe2_analyzer progression game.aoe2record --step 120
 
 # Just the overview section (timings, pace, TC idle, activity).
 python -m aoe2_analyzer analyze path/to/replay.aoe2record --summary-only

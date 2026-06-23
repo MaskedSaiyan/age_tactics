@@ -191,6 +191,57 @@ def _format_tc_idle(p: PlayerSummary, top_gaps: int = 5) -> list[str]:
     return out
 
 
+def format_progression(summary: ReplaySummary, step_seconds: int = 180) -> str:
+    """Cross-player timeline: cumulative villagers & military at each time mark.
+
+    This is the 'how the game progressed' view — it shows the state of every
+    player *at each moment*, so you can see who was ahead minute by minute
+    instead of only the end-of-game totals (which late AI production inflates).
+    """
+    players = summary.players
+    if not players:
+        return ""
+    dur = summary.game_duration_seconds or 0
+    marks = list(range(step_seconds, int(dur) + 1, step_seconds))
+    if not marks:
+        return ""
+
+    def col(name: str) -> str:
+        return f"{name[:9]:>9s}"
+
+    header = "  time  | " + " ".join(col(p.name) for p in players)
+
+    def table(title: str, military: bool) -> list[str]:
+        rows = [f"  {title}", header]
+        for t in marks:
+            cells = []
+            for p in players:
+                v, m, _ = _counts_up_to(p.build_order, t)
+                cells.append(f"{(m if military else v):9d}")
+            rows.append(f"  {_fmt_time(t)} | " + " ".join(cells))
+        return rows
+
+    out = ["=" * 60, "PROGRESSION — cumulative by time (queued)", "=" * 60]
+    out.append("Age clicks:")
+    for p in players:
+        if not p.age_timings:
+            continue
+        clicks = "  ".join(
+            f"{a.age[0]} {_fmt_time(a.click_time)}"
+            for a in p.age_timings if a.click_time is not None
+        )
+        if clicks:
+            out.append(f"  {p.name[:18]:<18} {clicks}")
+    out.append("")
+    out.extend(table("VILLAGERS over time:", military=False))
+    out.append("")
+    out.extend(table("MILITARY over time:", military=True))
+    out.append("")
+    out.append("(Counts are cumulative units queued — totals inflate late as AIs")
+    out.append(" keep producing; what matters is who led at each time mark.)")
+    return "\n".join(out) + "\n"
+
+
 def format_build_order(p: PlayerSummary) -> str:
     """Return the full numbered build-order timeline for one player."""
     lines = ["=" * 60, f"BUILD ORDER — {p.name}", "=" * 60]
@@ -405,6 +456,14 @@ def format_report(
     parts.append("#  SECTION 1 — OVERVIEW (timings, pace, TC idle, activity)")
     parts.append("#" * 60)
     parts.append(format_summary(summary, deep_dive))
+
+    progression = format_progression(summary)
+    if progression:
+        parts.append("")
+        parts.append("#" * 60)
+        parts.append("#  SECTION 1b — PROGRESSION (who led, minute by minute)")
+        parts.append("#" * 60)
+        parts.append(progression)
 
     for p in deep_dive:
         parts.append("")

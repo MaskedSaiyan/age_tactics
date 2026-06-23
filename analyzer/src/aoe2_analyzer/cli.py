@@ -23,6 +23,7 @@ from .report import (
     format_assignments,
     format_compare,
     format_identity,
+    format_progression,
     format_report,
     format_summary,
     format_unit_log,
@@ -45,7 +46,13 @@ def build_parser() -> argparse.ArgumentParser:
         "analyze",
         help="Full sectioned report: overview + build order + assignments.",
     )
-    analyze.add_argument("replay", help="Path to a .aoe2record file.")
+    analyze.add_argument(
+        "replay",
+        nargs="?",
+        default=None,
+        help="A .aoe2record file, OR a folder (uses its newest replay). "
+        "Omit entirely to use the newest replay in ./samples.",
+    )
     analyze.add_argument(
         "-p",
         "--player",
@@ -70,6 +77,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="After analysing, suggest a filename and offer to rename the file.",
     )
+
+    progression = subparsers.add_parser(
+        "progression",
+        help="Cross-player timeline: who led on vills/military, minute by minute.",
+    )
+    progression.add_argument(
+        "replay",
+        nargs="?",
+        default=None,
+        help="A .aoe2record file, a folder (newest replay), or omit for ./samples.",
+    )
+    progression.add_argument(
+        "--step", type=int, default=180,
+        help="Seconds between time marks (default: 180 = every 3 min).",
+    )
+    progression.add_argument("-o", "--out", default=None, help="Write the table to this file.")
 
     villagers = subparsers.add_parser(
         "villagers",
@@ -146,6 +169,38 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def _newest_replay(folder: str) -> Optional[str]:
+    """Return the most-recently-modified .aoe2record in `folder`, or None."""
+    files = glob.glob(os.path.join(folder, "*.aoe2record"))
+    if not files:
+        return None
+    return max(files, key=os.path.getmtime)
+
+
+def _resolve_replay(arg: Optional[str], default_dir: str = "samples") -> Optional[str]:
+    """Turn a file / folder / omitted arg into a concrete replay path.
+
+    - a file path  -> itself
+    - a folder     -> its newest .aoe2record
+    - omitted/None -> the newest .aoe2record in ./samples
+
+    Prints which file was auto-picked so the choice is never a surprise.
+    """
+    target = arg if arg is not None else default_dir
+    if os.path.isdir(target):
+        newest = _newest_replay(target)
+        if newest is None:
+            print(f"error: no .aoe2record files in '{target}'.", file=sys.stderr)
+            return None
+        where = "newest replay" + (f" in {target}" if arg is not None else f" in ./{default_dir}")
+        print(f"Using {where}: {os.path.basename(newest)}\n")
+        return newest
+    if arg is None:
+        print(f"error: no '{default_dir}' folder here; pass a replay path.", file=sys.stderr)
+        return None
+    return target
 
 
 def _load(replay: str):
@@ -229,7 +284,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "analyze":
-        summary = _load(args.replay)
+        replay = _resolve_replay(args.replay)
+        if replay is None:
+            return 1
+        args.replay = replay
+        summary = _load(replay)
         if summary is None:
             return 1
 
@@ -255,6 +314,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             print(text, end="")
             _suggest_and_maybe_rename(args.replay, summary, args.rename)
+        return 0
+
+    if args.command == "progression":
+        replay = _resolve_replay(args.replay)
+        if replay is None:
+            return 1
+        summary = _load(replay)
+        if summary is None:
+            return 1
+        text = format_progression(summary, args.step)
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            print(f"Wrote progression to {args.out}")
+        else:
+            print(text, end="")
         return 0
 
     if args.command == "versus":
